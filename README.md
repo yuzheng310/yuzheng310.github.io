@@ -1,0 +1,22 @@
+# yuzheng310 个人主页
+
+基于 [Astro Nano](https://github.com/markhorn-dev/astro-nano)（MIT）改写，使用简洁的文字排版展示项目与笔记。
+
+- 首页：`src/pages/index.astro`
+- 项目记录：`src/content/projects/`
+- 技术笔记：`src/content/blog/`
+- 关于：`src/pages/about/index.astro`
+- 公共布局：`src/layouts/Portfolio.astro`
+- 样式：`src/styles/portfolio.css`
+
+## 本地运行
+
+使用兼容现有锁文件的 pnpm 8：
+
+```sh
+npx pnpm@8.15.9 install --frozen-lockfile
+npm run dev
+npm run build
+```
+
+项目介绍根据现有材料整理。技术笔记是本次建站整理的新稿。以公开源码中的实验条件与限制为准。网站使用 GitHub 昵称，不展示真实姓名或私人联系方式。

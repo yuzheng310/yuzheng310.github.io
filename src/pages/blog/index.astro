@@ -1,0 +1,6 @@
+---
+import {getCollection} from 'astro:content';
+import Portfolio from '../../layouts/Portfolio.astro';
+const items=(await getCollection('blog',({data})=>!data.draft)).sort((a,b)=>b.data.date.valueOf()-a.data.date.valueOf());
+---
+<Portfolio title="笔记 · yuzheng310" active="blog"><header class="page-heading"><h1>笔记</h1><p>从项目实践中整理的技术记录。</p></header><div class="project-list">{items.map(item=><article class="work"><h3><a href={`/blog/${item.slug}/`}>{item.data.title}</a></h3><p>{item.data.description}</p><div class="work-links"><a href={`/blog/${item.slug}/`}>阅读记录</a></div></article>)}</div></Portfolio>

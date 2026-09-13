@@ -1,0 +1,13 @@
+---
+import {getCollection} from 'astro:content';
+import Portfolio from '../../layouts/Portfolio.astro';
+export async function getStaticPaths() {
+ const items=await getCollection('projects',({data})=>!data.draft);
+ return items.map(item=>({params:{slug:item.slug},props:{item}}));
+}
+const {item}=Astro.props;
+const {Content}=await item.render();
+---
+<Portfolio title={`${item.data.title} · yuzheng310`} description={item.data.description} active="projects">
+<article><a class="back" href="/projects/">← 全部项目</a><header class="article-header"><h1>{item.data.title}</h1><p class="deck">{item.data.description}</p><p class="article-meta">项目记录{item.data.repoURL && <span> · <a href={item.data.repoURL}>源码 ↗</a></span>}</p></header><div class="prose"><Content/></div><div class="article-end"><a href="/projects/">返回项目列表</a></div></article>
+</Portfolio>

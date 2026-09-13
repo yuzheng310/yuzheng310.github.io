@@ -1,0 +1,6 @@
+---
+import {getCollection} from 'astro:content';
+import Portfolio from '../../layouts/Portfolio.astro';
+const items=(await getCollection('projects',({data})=>!data.draft)).sort((a,b)=>b.data.date.valueOf()-a.data.date.valueOf());
+---
+<Portfolio title="项目 · yuzheng310" active="projects"><header class="page-heading"><h1>项目</h1><p>一些工程项目，以及其中的问题、实现和取舍。</p></header><div class="project-list">{items.map(item=><article class="work"><h3><a href={`/projects/${item.slug}/`}>{item.data.title}</a></h3><p>{item.data.description}</p><div class="work-links"><a href={`/projects/${item.slug}/`}>阅读记录</a></div></article>)}</div></Portfolio>
