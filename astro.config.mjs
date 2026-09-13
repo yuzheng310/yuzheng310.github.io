@@ -4,7 +4,7 @@ import sitemap from "@astrojs/sitemap";
 import tailwind from "@astrojs/tailwind";
 
 export default defineConfig({
-  site: "https://yuzheng310.caalamarilis748.chatgpt.site",
+  site: "https://yuzheng310.github.io",
   devToolbar: { enabled: false },
   integrations: [mdx(), sitemap(), tailwind()],
 });

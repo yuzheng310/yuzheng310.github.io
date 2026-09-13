@@ -22,3 +22,6 @@ pnpm-debug.log*
 .DS_Store
 
 .sites-runtime/
+
+# Previous hosting metadata stays local
+.openai/
