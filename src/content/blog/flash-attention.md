@@ -5,9 +5,8 @@ date: 2026-09-15
 repoURL: https://github.com/Dao-AILab/flash-attention
 ---
 
-
 > **原文标题**：[ELI5: FlashAttention](https://gordicaleksa.medium.com/eli5-flash-attention-5c44017022ad)  
-> **作者**：Aleksa Gordić | **发布时间**：2023年7月18日  
+> **作者**：Aleksa Gordic | **发布时间**：2023年7月18日  
 > **副标题**：从第一性原理到 GPU 显存金字塔，像独立发明者一样从零推导快如闪电的精确注意力机制  
 > **原论文**：[FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135)（NeurIPS 2022，Tri Dao 等）
 
@@ -60,8 +59,8 @@ repoURL: https://github.com/Dao-AILab/flash-attention
    * 在 GPT-2（序列长度 1K）上，比 Hugging Face 和 Megatron-LM 的标准基线实现快 **3 倍**；
    * 在长文本基准 Long-Range Arena（序列长度 1K~4K）上，比基线加速 **2.4 倍**。
 2. **显存高效（Memory-Efficient）**：
-   * 原生标准注意力的中间激活值显存占用随序列长度 $ 呈二次方增长（(N^2)$）；
-   * FlashAttention 将运行时的额外显存开销直接降至线性（(N)$）。稍后我们会深入剖析其数学与工程原理。
+   * 原生标准注意力的中间激活值显存占用随序列长度 N 呈二次方增长（`O(N²)`）；
+   * FlashAttention 将运行时的额外显存开销直接降至线性（`O(N)`）。稍后我们会深入剖析其数学与工程原理。
 3. **数学精确（Exact）**：
    * 它**绝非**近似注意力（不同于 Sparse Attention 稀疏注意力或 Low-Rank 低秩矩阵逼近等有损方案）；
    * 它的数学计算结果与原生标准注意力在数值上是完全等价的，无需在模型精度与推理质量上做任何妥协。
@@ -127,14 +126,14 @@ repoURL: https://github.com/Dao-AILab/flash-attention
 
 ![标准注意力机制的物理访存路径：频繁且昂贵的 HBM 读写](/flash_attention_assets/standard_attention_hbm.png)
 
-*符号约定*：$ 为查询矩阵，$ 为键矩阵，$ 为值矩阵，$ 为注意力分数，$ 为 Softmax 概率矩阵，$ 为最终输出。
+*符号约定*：Q 为查询矩阵，K 为键矩阵，V 为值矩阵，S 为注意力分数，P 为 Softmax 概率矩阵，O 为最终输出。
 
 标准实现对底层硬件物理特性的不加考虑令人发指：
-1. 从 HBM 读出 , K$，在 SRAM 算完点积得到分数矩阵 $；
-2. **立刻将巨大的  	imes N$ 分数矩阵 $ 完整写回慢速 HBM**；
-3. 为了算 Masking 与 Softmax，**又重新把 $ 从 HBM 完整加载回 SRAM**；
-4. 算完 Softmax 得到概率矩阵 $，**又一次把全量  	imes N$ 矩阵 $ 写回慢速 HBM**；
-5. 最后为了与 $ 做乘法，**第三次从 HBM 读回 *，并与从 HBM 读取的 $ 相乘，最终写出 $。
+1. 从 HBM 读出 Q, K，在 SRAM 算完点积得到分数矩阵 S；
+2. **立刻将巨大的 N × N 分数矩阵 S 完整写回慢速 HBM**；
+3. 为了算 Masking 与 Softmax，**又重新把 S 从 HBM 完整加载回 SRAM**；
+4. 算完 Softmax 得到概率矩阵 P，**又一次把全量 N × N 矩阵 P 写回慢速 HBM**；
+5. 最后为了与 V 做乘法，**第三次从 HBM 读回 P**，并与从 HBM 读取的 V 相乘，最终写出 O。
 
 这一过程把慢速 HBM 的 Load/Store 视作毫无开销。每一步微小操作都在全量刷盘，这就是标准实现慢且占用巨量显存的根本原因。
 
@@ -146,7 +145,7 @@ repoURL: https://github.com/Dao-AILab/flash-attention
 
 **彻底砍掉不必要的 HBM 重复读写！**
 
-为什么非要把中间矩阵 $ 写回 HBM，只为了下一步再把它读出来算 Softmax 呢？为什么不把中间数据直接锁定在极其高速的 SRAM 中，一气呵成完成计算，只在最终结果算完后写回一次 HBM？
+为什么非要把中间矩阵 S 写回 HBM，只为了下一步再把它读出来算 Softmax 呢？为什么不把中间数据直接锁定在极其高速的 SRAM 中，一气呵成完成计算，只在最终结果算完后写回一次 HBM？
 
 这就是底层编译器领域最核心的技术——**算子融合（Kernel Fusion）**：
 
@@ -161,9 +160,9 @@ repoURL: https://github.com/Dao-AILab/flash-attention
 
 此外，必须明确一个关键术语：**物化（Materialization）**。
 
-在标准实现中，我们显式地向 HBM 申请分配并存储了全尺寸的  	imes N$ 矩阵（$ 和 $）。这就叫**显存物化**。当序列长度 $ 增长到 8K、32K 乃至 128K 时，^2$ 的物理显存开销会发生毁灭性的爆炸。
+在标准实现中，我们显式地向 HBM 申请分配并存储了全尺寸的 N × N 矩阵（S 和 P）。这就叫**显存物化**。当序列长度 N 增长到 8K、32K 乃至 128K 时，N² 的物理显存开销会发生毁灭性的爆炸。
 
-**FlashAttention 要解决的核心痛点，正是彻底消除  	imes N$ 中间注意力矩阵在 HBM 中的物化，将显存复杂度从 (N^2)$ 砍到严格线性的 (N)$！**
+**FlashAttention 要解决的核心痛点，正是彻底消除 N × N 中间注意力矩阵在 HBM 中的物化，将显存复杂度从 `O(N²)` 砍到严格线性的 `O(N)`！**
 
 ---
 
@@ -172,7 +171,7 @@ repoURL: https://github.com/Dao-AILab/flash-attention
 FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 
 1. **Tiling（分块分片计算）**：在前向传播（Forward）与反向传播（Backward）中，将全尺寸的输入矩阵与 Softmax 计算逻辑切分成能够刚好塞进 SRAM 的局部小块。
-2. **Recomputation（反向重计算）**：在反向传播中，坚决不保存  	imes N$ 的前向注意力中间结果，而是仅保留极其小巧的统计量，在需要梯度时利用 SRAM 极速重算注意力矩阵。
+2. **Recomputation（反向重计算）**：在反向传播中，坚决不保存 N × N 的前向注意力中间结果，而是仅保留极其小巧的统计量，在需要梯度时利用 SRAM 极速重算注意力矩阵。
 
 ![FlashAttention 核心算法极简总览](/flash_attention_assets/flash_attention_algo_summary.png)
 
@@ -184,17 +183,19 @@ FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 
 为什么 Attention 以前无法分块？因为 Softmax 的每一项输出都与整行所有元素强耦合。
 
-回顾 Softmax 的标准数学定义，对于第 $ 个输入分数 $：
+回顾 Softmax 的标准数学定义，对于第 i 个输入分数 z_i：
 
 ![标准 Softmax 算子公式](/flash_attention_assets/softmax_formula.png)
 
-5615	ext{Softmax}(z_i) = rac{e^{z_i}}{\sum_{j=1}^N e^{z_j}}5615
+```text
+Softmax(z_i) = exp(z_i) / ∑ exp(z_j)
+```
 
-注意到分母中的**全局累加求和项 $\sum_{j=1}^N e^{z_j}* 了吗？
+注意到分母中的**全局累加求和项 ∑ exp(z_j)** 了吗？
 
-为了计算当前序列第 $ 个 Token 对其他所有 Token 的注意力权重，你必须事先拿到这一行中全部 $ 个 Token 的注意力分数，才能算出分母！
+为了计算当前序列第 i 个 Token 对其他所有 Token 的注意力权重，你必须事先拿到这一行中全部 N 个 Token 的注意力分数，才能算出分母！
 
-而 SRAM 的物理容量极其微小（只有区区几十到几百 KB）。当序列长度 $ 达到数千乃至数万时，SRAM 根本装不下整行注意力分数，更装不下全量  	imes N$ 矩阵。
+而 SRAM 的物理容量极其微小（只有区区几十到几百 KB）。当序列长度 N 达到数千乃至数万时，SRAM 根本装不下整行注意力分数，更装不下全量 N × N 矩阵。
 
 ### 数学破局：增量分块合并 Softmax（Online Softmax）
 
@@ -204,33 +205,37 @@ FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 
 ![分块局部 Softmax 计算公式](/flash_attention_assets/partial_softmax_formula.png)
 
-假定我们将序列切分为若干个大小为 $ 的块。对于第一个数据块 ^{(1)} = [x_1, \dots, x_B]$，我们计算局部统计量：
+假定我们将序列切分为若干个大小为 B 的块。对于第一个数据块 x^(1) = [x_1, ..., x_B]，我们计算局部统计量：
 
-1. **局部最大值**：(x^{(1)}) = \max_{j=1 \dots B}(x_j)$（减去最大值是为了保证浮点数指数运算的数值稳定性，防止发生溢出）；
-2. **局部指数向量**：(x^{(1)}) = \left[ e^{x_1 - m(x^{(1)})}, \dots, e^{x_B - m(x^{(1)})} ight]$；
-3. **局部指数标量和（局部归一化分母）**：(x^{(1)}) = \sum_{j=1}^B f(x^{(1)})_j$。
+1. **局部最大值**：`m(x^(1)) = max(x_j)`（减去最大值是为了保证浮点数指数运算的数值稳定性，防止发生溢出）；
+2. **局部指数向量**：`f(x^(1)) = [ exp(x_1 - m(x^(1))), ..., exp(x_B - m(x^(1))) ]`；
+3. **局部指数标量和（局部归一化分母）**：`l(x^(1)) = ∑ exp(x_j - m(x^(1)))`。
 
-此时计算出的局部结果在全局视角下显然是“不完整”的。但关键在于，当第二个数据块 ^{(2)}$ 到来时，我们如何将两块完美地合并？
+此时计算出的局部结果在全局视角下显然是“不完整”的。但关键在于，当第二个数据块 x^(2) 到来时，我们如何将两块完美地合并？
 
 ![分块 Softmax 动态合并公式](/flash_attention_assets/softmax_tiling_merge_formula.png)
 
-令合并后的整体输入向量为  = [x^{(1)}, x^{(2)}]$，其两块的合并法则如下：
+令合并后的整体输入向量为 x = [x^(1), x^(2)]，其两块的合并法则如下：
 
-5615m(x) = \max\left(m(x^{(1)}), m(x^{(2)})ight)5615
+```text
+1. 合并后的全局最大值：
+   m(x) = max(m(x^(1)), m(x^(2)))
 
-5615l(x) = e^{m(x^{(1)}) - m(x)} \cdot l(x^{(1)}) + e^{m(x^{(2)}) - m(x)} \cdot l(x^{(2)})5615
+2. 重新标定并合并后的分母（指数和）：
+   l(x) = exp(m(x^(1)) - m(x)) * l(x^(1)) + exp(m(x^(2)) - m(x)) * l(x^(2))
 
-5615f(x) = \left[ e^{m(x^{(1)}) - m(x)} \cdot f(x^{(1)}), \; e^{m(x^{(2)}) - m(x)} \cdot f(x^{(2)}) ight]5615
+3. 重新标定并合并后的分子（未归一化概率向量）：
+   f(x) = [ exp(m(x^(1)) - m(x)) * f(x^(1)),  exp(m(x^(2)) - m(x)) * f(x^(2)) ]
 
-最终的精确 Softmax 结果只需除以最新的全局标量和：
-
-5615	ext{Softmax}(x) = rac{f(x)}{l(x)}5615
+4. 最终精确 Softmax：
+   Softmax(x) = f(x) / l(x)
+```
 
 > **💡 代数直觉说明**  
-> 这背后的代数技巧非常优雅：新块带来的新最大值 (x)$ 会与旧块的最大值产生差值。我们只需为旧块的指数和 (x^{(1)})$ 乘上一个缩放校正系数 ^{m(x^{(1)}) - m(x)}$，就能抵消旧的基准并严谨地重标定（Rescale）到统一的新基准线上！  
-> 整个过程只需要保留两个轻量级标量统计量：**历史最大值 * 和 **历史指数和 *。
+> 这背后的代数技巧非常优雅：新块带来的新最大值 m(x) 会与旧块的最大值产生差值。我们只需为旧块的指数和 l(x^(1)) 乘上一个缩放校正系数 `exp(m(x^(1)) - m(x))`，就能抵消旧的基准并严谨地重标定（Rescale）到统一的新基准线上！  
+> 整个过程只需要保留两个轻量级标量统计量：**历史最大值 m** 和 **历史指数和 l**。
 
-这个分块合并逻辑可以沿着数据块一路递推下去，直至处理完最后一个分块，最终直接得到完美的 $ 维全局精确 Softmax！
+这个分块合并逻辑可以沿着数据块一路递推下去，直至处理完最后一个分块，最终直接得到完美的 N 维全局精确 Softmax！
 
 ---
 
@@ -240,37 +245,37 @@ FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 
 ![FlashAttention 前向传播全景算法伪代码](/flash_attention_assets/flash_attention_algorithm.png)
 
-> **算法约定**：以下推导以 Batch Size = 1、单 Head 为基准展开（多 Batch 和多 Head 在 GPU 上是完全独立的并行任务）。符号定义：$ 为注意力头维度，$ 为片上 SRAM 的物理可用容量。
+> **算法约定**：以下推导以 Batch Size = 1、单 Head 为基准展开（多 Batch 和多 Head 在 GPU 上是完全独立的并行任务）。符号定义：d 为注意力头维度，M 为片上 SRAM 的物理可用容量。
 
 算法整体的分块网格模型示意如下（**务必在脑海中建立这个几何心智模型**）：
 
 ![FlashAttention 分块网格视图：外层列循环与内层行循环](/flash_attention_assets/tiling_grid_diagram.png)
 
 ### Step 0：全量输入驻留 HBM
-* 输入矩阵 , K, V$ 尺寸为  	imes d$。由于现代 GPU 的 HBM 达到数十 GB，容纳输入张量不存在任何容量瓶颈。
+* 输入矩阵 Q, K, V 尺寸为 N × d。由于现代 GPU 的 HBM 达到数十 GB，容纳输入张量不存在任何容量瓶颈。
 
 ### Step 1：确定分块尺寸
-* **列分块大小**： = \lceil M / 4d ceil$；
-* **行分块大小**： = \min\left(\lceil M / 4d ceil, dight)$。
-* *为什么是  / 4d$？* 因为每个 Token 向量是 $ 维的，而在 SRAM 中我们需要同时协同容纳 $ 块、$ 块、$ 块和累加输出 $ 块（共 4 类张量）。这样设置刚好能够将片上 SRAM 榨取到极限利用率。
+* **列分块大小**：`B_c = ceil(M / 4d)`；
+* **行分块大小**：`B_r = min(ceil(M / 4d), d)`。
+* *为什么是 M / 4d？* 因为每个 Token 向量是 d 维的，而在 SRAM 中我们需要同时协同容纳 Q 块、K 块、V 块和累加输出 O 块（共 4 类张量）。这样设置刚好能够将片上 SRAM 榨取到极限利用率。
 
 ### Step 2：初始化累加器与全局统计量
 ![Step 2 伪代码](/flash_attention_assets/algo_step2.png)
-* 输出矩阵 $ 初始化为全 0（尺寸  	imes d$）；
-* 累积 Softmax 分母标量和 $ 初始化为全 0（尺寸 $）；
-* 累积最大值统计量 $ 初始化为 569X\infty$（尺寸 $）。由于后续要求最大值，任何有限数值都会大于 569X\infty$。
+* 输出矩阵 O 初始化为全 0（尺寸 N × d）；
+* 累积 Softmax 分母标量和 l 初始化为全 0（尺寸 N）；
+* 累积最大值统计量 m 初始化为 `-inf`（尺寸 N）。由于后续要求最大值，任何有限数值都会大于 `-inf`。
 
 ### Step 3 & 4：逻辑切分
 ![Step 3 伪代码](/flash_attention_assets/algo_step3.png)
 ![Step 4 伪代码](/flash_attention_assets/algo_step4.png)
-* 将输入 $ 按行切分为  = \lceil N / B_r ceil$ 个块 , \dots, Q_{T_r}$（每个块尺寸  	imes d$）；
-* 将 , V$ 按行切分为  = \lceil N / B_c ceil$ 个块 , \dots, K_{T_c}$ 和 , \dots, V_{T_c}$（每个块尺寸  	imes d$）；
-* 同样将 , l, m$ 对应切分成块。
+* 将输入 Q 按行切分为 `T_r = ceil(N / B_r)` 个块 Q_1, ..., Q_{T_r}（每个块尺寸 B_r × d）；
+* 将 K, V 按行切分为 `T_c = ceil(N / B_c)` 个块 K_1, ..., K_{T_c} 和 V_1, ..., V_{T_c}（每个块尺寸 B_c × d）；
+* 同样将 O, l, m 对应切分成块。
 
 ### Step 5 & 6：外层循环（遍历列，即遍历 Key / Value 块）
 ![Step 5 伪代码](/flash_attention_assets/algo_step5.png)
 ![Step 6 伪代码](/flash_attention_assets/algo_step6.png)
-* 循环变量  = 1 \dots T_c$。从慢速 HBM 将 , V_j$ 块一次性加载到片上 SRAM；
+* 循环变量 `j = 1 ... T_c`。从慢速 HBM 将 K_j, V_j 块一次性加载到片上 SRAM；
 * 此时片上 SRAM 约占用 50% 容量，剩下的 50% 留给 Query 和 Output。
 
 ![SRAM 内部内存布局示意图](/flash_attention_assets/sram_allocation.png)
@@ -278,27 +283,31 @@ FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 ### Step 7 & 8：内层循环（遍历行，即遍历 Query / Output 块）
 ![Step 7 伪代码](/flash_attention_assets/algo_step7.png)
 ![Step 8 伪代码](/flash_attention_assets/algo_step8.png)
-* 循环变量  = 1 \dots T_r$。从 HBM 将 , O_i$ 以及对应的局部统计量 , m_i$ 加载到 SRAM 中。
+* 循环变量 `i = 1 ... T_r`。从 HBM 将 Q_i, O_i 以及对应的局部统计量 l_i, m_i 加载到 SRAM 中。
 
 ### Step 9：局部注意力打分矩阵点积
 ![Step 9 伪代码](/flash_attention_assets/algo_step9.png)
-* 在片上 SRAM 中，直接计算 {ij} = Q_i K_j^T$（尺寸为  	imes B_c$）；
-* **关键里程碑**：在此处，全量  	imes N$ 的打分矩阵 $ **从未在显存中物化**！我们仅仅在极速 SRAM 中生成了一小块局部分数切片！
+* 在片上 SRAM 中，直接计算 `S_ij = Q_i · (K_j)^T`（尺寸为 B_r × B_c）；
+* **关键里程碑**：在此处，全量 N × N 的打分矩阵 S **从未在显存中物化**！我们仅仅在极速 SRAM 中生成了一小块局部分数切片！
 
 ![计算单个局部打分块示例图](/flash_attention_assets/attention_block_example.png)
 
 ### Step 10：计算当前块的局部 Softmax 统计量
 ![Step 10 伪代码](/flash_attention_assets/algo_step10.png)
-* 计算当前块的行最大值：$	ilde{m}_{ij} = 	ext{rowmax}(S_{ij}) \in \mathbb{R}^{B_r}$；
-* 计算减去局部最大值后的指数打分：$	ilde{P}_{ij} = \exp(S_{ij} - 	ilde{m}_{ij}) \in \mathbb{R}^{B_r 	imes B_c}$；
-* 计算当前块的局部指数和：$	ilde{l}_{ij} = 	ext{rowsum}(	ilde{P}_{ij}) \in \mathbb{R}^{B_r}$。
+* 计算当前块的行最大值：`m_tilde_ij = rowmax(S_ij)`（长度为 B_r）；
+* 计算减去局部最大值后的指数打分：`P_tilde_ij = exp(S_ij - m_tilde_ij)`（尺寸为 B_r × B_c）；
+* 计算当前块的局部指数和：`l_tilde_ij = rowsum(P_tilde_ij)`（长度为 B_r）。
 
 ### Step 11：更新全局累积统计量
 ![Step 11 伪代码](/flash_attention_assets/algo_step11.png)
 * 计算融合了当前块之后的最新行最大值：
-  5615m_i^{	ext{new}} = \max(m_i, 	ilde{m}_{ij})5615
+  ```text
+  m_i_new = max(m_i, m_tilde_ij)
+  ```
 * 计算按新基准重标定后的最新行指数累加和：
-  5615l_i^{	ext{new}} = e^{m_i - m_i^{	ext{new}}} l_i + e^{	ilde{m}_{ij} - m_i^{	ext{new}}} 	ilde{l}_{ij}5615
+  ```text
+  l_i_new = exp(m_i - m_i_new) * l_i + exp(m_tilde_ij - m_i_new) * l_tilde_ij
+  ```
 
 ![历史全局最大值与当前块最大值的更新示意](/flash_attention_assets/m_new_running_max.png)
 
@@ -307,20 +316,22 @@ FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 
 这是理解 FlashAttention 最硬核、但也最美妙的一步。我们来彻底拆解其代数表达式：
 
-5615O_i \leftarrow 	ext{diag}\left(l_i^{	ext{new}}ight)^{-1} \left( 	ext{diag}(l_i) e^{m_i - m_i^{	ext{new}}} O_i + e^{	ilde{m}_{ij} - m_i^{	ext{new}}} 	ilde{P}_{ij} V_j ight)5615
+```text
+O_i ← diag(l_i_new)^(-1) * [ diag(l_i) * exp(m_i - m_i_new) * O_i + exp(m_tilde_ij - m_i_new) * P_tilde_ij * V_j ]
+```
 
 ![Step 12 核心公式项逐一分解拆析](/flash_attention_assets/step12_formula_analysis.png)
 
-1. **矩阵形式的 $	ext{diag}(l)*：本质上就是用对角阵表达“对每一行进行逐行标量缩放”；
+1. **矩阵形式的 `diag(l)`**：本质上就是用对角阵表达“对每一行进行逐行标量缩放”；
 2. **第一项（绿色下划线部分）**：
-   * 之前保存的累积输出 $ 中，内部隐藏着上一轮的除法分母 $；
-   * 通过左乘 $	ext{diag}(l_i)$，**精准抵消并撤销了旧分母**；
-   * 再乘上 ^{m_i - m_i^{	ext{new}}}$，使历史的未归一化加权累加值自动更新为以最新全局最大值 ^{	ext{new}}$ 为底的新刻度！
+   * 之前保存的累积输出 O_i 中，内部隐藏着上一轮的除法分母 l_i；
+   * 通过左乘 `diag(l_i)`，**精准抵消并撤销了旧分母**；
+   * 再乘上 `exp(m_i - m_i_new)`，使历史的未归一化加权累加值自动更新为以最新全局最大值 `m_i_new` 为底的新刻度！
 3. **第二项（黄色下划线部分）**：
-   * 当前块新算出来的注意力加权值 $	ilde{P}_{ij} V_j$；
-   * 同样乘上 ^{	ilde{m}_{ij} - m_i^{	ext{new}}}$，与第一项对齐到同一个基准刻度；
-4. **最外层的 $	ext{diag}(l_i^{	ext{new}})^{-1}*：
-   * 两项加权相加后，整体除以最新的全局总分母 ^{	ext{new}}$，完成当前轮次严谨无损的重标定归一化！
+   * 当前块新算出来的注意力加权值 `P_tilde_ij * V_j`；
+   * 同样乘上 `exp(m_tilde_ij - m_i_new)`，与第一项对齐到同一个基准刻度；
+4. **最外层的 `diag(l_i_new)^(-1)`**：
+   * 两项加权相加后，整体除以最新的全局总分母 `l_i_new`，完成当前轮次严谨无损的重标定归一化！
 
 如果感觉文字抽象，我们来看作者手写推导前两轮迭代的具体代数展开过程：
 
@@ -331,11 +342,11 @@ FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 
 ### Step 13：写回统计量
 ![Step 13 伪代码](/flash_attention_assets/algo_step13.png)
-* 将本轮计算出的最新向量 $ 与 $ 写回 HBM。注意它们的尺寸只有 $，相比  	imes N$ 的打分矩阵小了几个数量级。
+* 将本轮计算出的最新向量 l_i 与 m_i 写回 HBM。注意它们的尺寸只有 B_r，相比 N × N 的打分矩阵小了几个数量级。
 
 ### Step 14~16：循环收敛与最终输出
 ![Step 14~16 伪代码](/flash_attention_assets/algo_steps14_16.png)
-* 当双层嵌套循环遍历结束时，矩阵 $（尺寸  	imes d$）中驻留的就是严格精确、完全等价于标准 Attention 的最终注意力输出结果！
+* 当双层嵌套循环遍历结束时，矩阵 O（尺寸 N × d）中驻留的就是严格精确、完全等价于标准 Attention 的最终注意力输出结果！
 
 ---
 
@@ -346,7 +357,7 @@ FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 ![块稀疏注意力掩码矩阵示意图](/flash_attention_assets/block_sparse_mask.png)
 
 * 定义一个粗粒度的块级掩码矩阵（Block Form Mask Matrix）；
-* 在内层循环中，如果判断某个 $ 块完全处于注意力遮掩区域（如因果因果掩码的右上三角区，或稀疏局部注意力窗口外部），**直接在调度层跳过该块的加载与计算**；
+* 在内层循环中，如果判断某个 (i, j) 块完全处于注意力遮掩区域（如因果因果掩码的右上三角区，或稀疏局部注意力窗口外部），**直接在调度层跳过该块的加载与计算**；
 * 计算时间直接按稀疏比例进一步缩减 2~4 倍，使处理 64K 超长上下文变得轻而易举！
 
 ---
@@ -354,41 +365,43 @@ FlashAttention 的全部魔力，归结起来就是两大支柱思想：
 <h2 id="cpt9">第九部分：显存与访存复杂度分析</h2>
 
 ### 显存空间复杂度（Space Complexity）
-* HBM 中实际分配并物化的张量包括：, K, V, O$（每个  	imes d$）以及统计量向量 , m$（每个 $）；
-* 总占用空间为：Nd + 2N$。由于头维度 $ 是固定常数（如 64 或 128），且远远小于序列长度 $；
-* **最终显存空间复杂度：严格的 (N)$（线性复杂度）**！相比标准实现的 (N^2)$，彻底解除了长上下文显存爆炸的枷锁。
+* HBM 中实际分配并物化的张量包括：Q, K, V, O（每个 N × d）以及统计量向量 l, m（每个 N）；
+* 总占用空间为：`4Nd + 2N`。由于头维度 d 是固定常数（如 64 或 128），且远远小于序列长度 N；
+* **最终显存空间复杂度：严格的 `O(N)`（线性复杂度）**！相比标准实现的 `O(N²)`，彻底解除了长上下文显存爆炸的枷锁。
 
 ### 访存复杂度（IO Complexity）
 衡量算法执行快慢的核心指标是 **HBM 访存次数（HBM Accesses）**：
 
 ![论文关于 HBM 访存复杂度的理论定理](/flash_attention_assets/io_complexity_paper.png)
 
-标准 Attention 的访存复杂度为 $\Theta(N d + N^2)$；而 FlashAttention 的 HBM 访存复杂度为：
+标准 Attention 的访存复杂度为 `Θ(N d + N²)；而 FlashAttention 的 HBM 访存复杂度为：
 
-5615\Theta\left(N^2 d^2 M^{-1}ight)5615
+```text
+Θ(N² d² M⁻¹)
+```
 
-其中 $ 为片上 SRAM 物理容量。在典型的超参数设定下（如 =64, M=100	ext{KB}$），FlashAttention 能够将 HBM 的物理读写总量**降低 5 到 9 倍**！这直接转化成了显著的物理运行加速。
+其中 M 为片上 SRAM 物理容量。在典型的超参数设定下（如 d=64, M=100KB），FlashAttention 能够将 HBM 的物理读写总量**降低 5 到 9 倍**！这直接转化成了显著的物理运行加速。
 
 ---
 
 <h2 id="cpt10">第十部分：连接现实世界工程——多 Head、反向重计算与 Triton</h2>
 
 ### 1. 多 Batch 与多 Head 的并行调度
-真实世界中  > 1$ 且 Head 数量 $> 1$。算法如何映射到 GPU？
+真实世界中 Batch > 1 且 Head 数量 > 1。算法如何映射到 GPU？
 * 前述的完整双层循环算法，在 CUDA 架构中由一个独立的 **Thread Block（线程块）** 全权负责；
 * 该 Thread Block 被分配到 GPU 上的一个 **Streaming Multiprocessor（SM）** 独占执行；
-* 整个 Grid 会启动  	imes NumHeads$ 个并发的 Thread Blocks，完全平铺并发到所有物理 SM 上并发执行，获得极高硬件占有率。
+* 整个 Grid 会启动 `Batch × NumHeads` 个并发的 Thread Blocks，完全平铺并发到所有物理 SM 上并发执行，获得极高硬件占有率。
 
 ### 2. 反向传播与零开销重计算（Recomputation）
-在标准反向传播（Backward Pass）中，计算梯度需要用到前向传播存下来的激活值 $ 与 $（ 	imes N$）。
+在标准反向传播（Backward Pass）中，计算梯度需要用到前向传播存下来的激活值 S 与 P（N × N）。
 
 FlashAttention 借鉴了**激活值检查点（Activation Checkpointing）**思想，但更进一步：
-* 前向传播**完全不存**任何  	imes N$ 中间矩阵，仅保存输出 $（ 	imes d$）和紧凑的统计量 , m$（$）；
-* 在反向传播中，直接将 , K, V$ 分块拉入片上 SRAM，**以超高带宽当场重算局部打分 $ 与 *！
-* 传统 Checkpointing 是以算力换显存；而在 FlashAttention 中，由于省去了写入与重读 HBM 的巨大访存延迟，这种“片上重算”甚至**比直接从 HBM 读取历史矩阵还要更快**！实现显存 (N)$ 与速度提升的双赢。
+* 前向传播**完全不存**任何 N × N 中间矩阵，仅保存输出 O（N × d）和紧凑的统计量 l, m（N）；
+* 在反向传播中，直接将 Q, K, V 分块拉入片上 SRAM，**以超高带宽当场重算局部打分 S 与 P**！
+* 传统 Checkpointing 是以算力换显存；而在 FlashAttention 中，由于省去了写入与重读 HBM 的巨大访存延迟，这种“片上重算”甚至**比直接从 HBM 读取历史矩阵还要更快**！实现显存 `O(N)` 与速度提升的双赢。
 
 ### 3. CUDA 的工程苦旅与 OpenAI Triton 的崛起
-原版 FlashAttention 需要用原生 CUDA C++ 编写深度优化的底层底层核函数：
+原版 FlashAttention 需要用原生 CUDA C++ 编写深度优化的底层核函数：
 
 ![原版代码库中复杂的 CUDA 源码片段](/flash_attention_assets/cuda_kernel_snippet.png)
 
