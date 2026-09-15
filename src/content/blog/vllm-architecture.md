@@ -26,7 +26,7 @@ repoURL: https://github.com/vllm-project/vllm
 4. [服务层（Serving layer）](#cpt4)：分布式 / 并发 Web 服务支撑体系
 5. [基准测试与自动调优（Benchmarks and auto-tuning）](#cpt5)：测量延迟与吞吐量
 
-> [!NOTE] 说明笔记
+> **说明笔记**
 > - 本文分析基于 vLLM 代码库的 [commit 42172ad](https://github.com/vllm-project/vllm/tree/42172ad)（2025年8月9日）。
 > - 目标受众：任何对最前沿的大模型推理引擎架构感到好奇的开发者，以及有意向参与 vLLM、SGLang 等开源基础设施建设的工程师。
 > - 本文主要聚焦于最新的 [V1 引擎](https://docs.vllm.ai/en/latest/usage/v1_guide.html)。我也深入探究过 V0 引擎（[现已废弃](https://github.com/vllm-project/vllm/issues/18571)），这对于理解该项目的设计演进非常有价值，而且许多核心概念依然通用。
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     main()
 ```
 
-> [!NOTE] 环境变量配置
+> **说明：环境变量配置**
 > - `VLLM_USE_V1="1"` # 显式启用最新的 V1 引擎
 > - `VLLM_ENABLE_V1_MULTIPROCESSING="0"` # 在单进程模式下运行
 
@@ -89,7 +89,7 @@ LLM 引擎由以下几个核心组件有机组合而成：
 - **引擎核心客户端（Engine core client）**：在当前单进程示例中，我们使用的是 `InprocClient`（其本质基本等同于 `EngineCore`）；在后文中我们将逐步升级为能够支持大规模集群动态服务的 `DPLBAsyncMPClient`；
 - **输出处理器（Output processor）**：将底层返回的原始 `EngineCoreOutputs` 解码并转换封装为终端用户可见的 `RequestOutput` 对象。
 
-> [!NOTE] 说明
+> **说明**
 > 随着旧版 V0 引擎被逐步弃用，代码库中的具体类名和接口签名可能会产生微调。本文将着重阐述架构背后的核心设计思想，而非死记硬背具体的代码签名，并在行文中对部分非关键的底层细节进行适度抽象。
 
 引擎核心（Engine Core）自身又由若干关键子组件构成：
@@ -143,7 +143,7 @@ KV Cache 管理器维护着一个 `free_block_queue`——即可用空闲 KV 物
 
 到这里，引擎已经接收到了待处理的工作负载，真正的推理执行即将拉开帷幕。在同步引擎示例中，这批初始输入的 Prompt 是整个运行周期内唯一需要处理的任务——中途没有任何机制能够在半路注入新的并发请求。相比之下，异步引擎则原生支持这一特性（即工业界著名的**连续批处理（Continuous Batching）[[6]](#ref-6)**）：在每一次推理 Step 结束后，调度器都会统筹兼顾新到达的请求与正在运行的存量请求。
 
-> [!NOTE] 连续批处理机制
+> **核心机制：连续批处理**
 > 由于 vLLM 的前向传播会将同一个 batch 内的所有请求扁平化拼接成单一的连续序列，并由定制的高效算子进行寻址处理，因此从底层数学与算子机制上说，即便在同步引擎中，连续批处理的基础能力在本质上也是完备支持的。
 
 接下来，只要等待或运行队列中依然存在未处理完的请求，引擎就会不断循环调用其核心的 `step()` 函数。每一次 Step 的执行都严格划分为三个阶段：
@@ -152,7 +152,7 @@ KV Cache 管理器维护着一个 `free_block_queue`——即可用空闲 KV 物
 2. **前向传播阶段（Forward pass）**：执行底层深度学习模型的矩阵计算并采样出新的 Token；
 3. **后处理阶段（Postprocess）**：将最新采样出的 Token ID 追加到对应的 `Request` 对象中，执行反分词（Detokenize），并严格检查停止条件（Stop Conditions）。如果某个请求已经触发停止条件，则立即执行资源清理（例如将其占用的 KV Cache 显存物理块归还回 `free_block_queue` 空闲池），并提前将最终输出结果返回给调用方。
 
-> [!NOTE] 请求的停止条件（Stop conditions）
+> **机制说明：请求的停止条件（Stop conditions）**
 > - 请求的总长度超出了系统或自身的上限（达到模型的 `max_model_length` 或自身设定的 `max_tokens`）；
 > - 最新采样生成的 Token 命中了结束符 EOS ID（除非在基准测试时显式开启了 `ignore_eos`，用以强制生成指定数量的输出 Token）；
 > - 采样出的 Token ID 匹配到了采样参数中所列出的任意 `stop_token_ids`；
@@ -161,7 +161,7 @@ KV Cache 管理器维护着一个 `free_block_queue`——即可用空闲 KV 物
 ![引擎主循环架构图](/vllm_blog_assets/engine_loop.png)
 *图 2：引擎主循环（Engine Loop）执行流程示意图*
 
-> [!NOTE] 流式传输说明
+> **架构说明：流式传输**
 > 在流式传输（Streaming）模式下，中间生成的 Token 会在每一步被实时推送给客户端，为简化当前的主线理解，我们暂时先忽略这一分支。
 
 ---
@@ -280,7 +280,7 @@ if __name__ == "__main__":
 
 在这个例子中，至关重要的变量是 `long_prefix`：它被定义为任何长度超过一个 KV Cache 物理块大小（默认配置下为 16 个 Token）的公共文本。假定 `long_prefix` 的长度刚好严格等于 `n x block_size`（其中 `n ≥ 1`）。
 
-> [!NOTE] 块对齐要求
+> **对齐约束：块对齐要求**
 > 前缀必须能够与物理显存块的边界完全对齐——如果无法对齐，尾部剩余的 `long_prefix_len % block_size` 个散碎 Token 依然必须重新计算，因为引擎出于显存管理与对齐效率考虑，不允许对未写满的半残 Block 进行跨请求共享。
 
 没有前缀缓存时，每次处理携带相同 `long_prefix` 的新请求，都必须将这 `n x block_size` 个 Token 的所有层注意力矩阵乘法重新计算一遍。开启前缀缓存后，这些公共 Token 首次计算后会被缓存在显存中，后续请求直接复用物理块，使得 Prefill 耗时发生数量级锐减。
@@ -305,7 +305,7 @@ if __name__ == "__main__":
 ![前缀缓存阶段三](/vllm_blog_assets/prefix_pt3.png)
 *图 8：前缀缓存运作逻辑阶段三：后续请求精准命中哈希并直接复用已有物理块*
 
-> [!NOTE] 缓存失效机制
+> **机制说明：缓存失效机制**
 > 已缓存的 KV Cache 物理块只有在全局显存极度紧张、新的请求被迫从 `free_block_queue` 头部弹出该块重新分配时，才会清除其哈希并从全局映射表中剔除，确保陈旧数据绝不会被错误复用。
 
 ---
@@ -337,7 +337,7 @@ if __name__ == "__main__":
     main()
 ```
 
-> [!NOTE] 高性能后端
+> **架构说明：高性能后端**
 > 文法编译与状态机转移主要由第三方高性能库（如 XGrammar [[7]](#ref-7)）在底层高效驱动。
 
 预处理器预先构建有限状态机（FSM）：
@@ -477,7 +477,7 @@ if __name__ == "__main__":
   prefill_process.terminate()
 ```
 
-> [!NOTE] 传输方案演进
+> **演进说明：传输方案**
 > 工业界实践涵盖 LMCache [[11]](#ref-11)、基于 RDMA 的 `PyNcclConnector` 以及 Mooncake 等高性能低延迟网络连接器。
 
 ---
