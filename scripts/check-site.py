@@ -17,6 +17,8 @@ class Page(HTMLParser):
             if a['id'] in self.ids: self.errors.append('duplicate id: ' + a['id'])
             self.ids.add(a['id'])
         if tag == 'h1': self.h1 += 1
+        if tag == 'img' and a.get('src', '').startswith('/') and not (a.get('width') and a.get('height')):
+            self.errors.append('image missing reserved dimensions: ' + a['src'])
         if 'katex-error' in a.get('class', '').split(): self.errors.append('KaTeX parse error')
         for attr in ('href', 'src'):
             if a.get(attr): self.links.append(a[attr])
