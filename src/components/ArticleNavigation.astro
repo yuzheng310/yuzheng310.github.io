@@ -1,12 +1,16 @@
-<nav class="article-navigation" aria-label="文章目录" hidden>
-  <details>
+---
+import ReadingPreferences from './ReadingPreferences.astro';
+---
+<nav class="article-navigation" aria-label="阅读设置与文章目录">
+  <ReadingPreferences />
+  <details class="toc-details" hidden>
     <summary>本文目录 <span aria-hidden="true">＋</span></summary>
     <ol></ol>
   </details>
 </nav>
 <script>
   const navigation = document.querySelector<HTMLElement>('.article-navigation');
-  const details = navigation?.querySelector('details');
+  const details = navigation?.querySelector<HTMLDetailsElement>('.toc-details');
   const list = navigation?.querySelector('ol');
   const headings = [...document.querySelectorAll<HTMLElement>('.prose h2, .prose h3')]
     .filter(heading => heading.textContent?.trim() !== '目录');
@@ -42,7 +46,7 @@
       list.append(item);
       return link;
     });
-    navigation.hidden = false;
+    details.hidden = false;
     const syncLayout = () => { details.open = desktop.matches; };
     syncLayout();
     desktop.addEventListener('change', syncLayout);
@@ -100,5 +104,6 @@
     }, { passive: true });
     updateActive();
     window.addEventListener('resize', updateActive);
+    document.addEventListener('article-font-change', () => requestAnimationFrame(updateActive));
   }
 </script>

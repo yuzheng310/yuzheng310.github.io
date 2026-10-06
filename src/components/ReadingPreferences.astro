@@ -1,0 +1,94 @@
+<details class="reading-settings">
+  <summary>字号设置</summary>
+  <div class="reading-settings-panel">
+    <div class="font-control" data-font="text">
+      <span>正文</span>
+      <button type="button" data-step="-1" aria-label="减小正文字号">−</button>
+      <output aria-label="当前正文字号" aria-live="polite">16px</output>
+      <button type="button" data-step="1" aria-label="增大正文字号">＋</button>
+    </div>
+    <div class="font-control" data-font="code">
+      <span>代码</span>
+      <button type="button" data-step="-1" aria-label="减小代码字号">−</button>
+      <output aria-label="当前代码字号" aria-live="polite">14px</output>
+      <button type="button" data-step="1" aria-label="增大代码字号">＋</button>
+    </div>
+    <button type="button" class="font-reset">恢复默认</button>
+  </div>
+</details>
+<script>
+  const settings = document.querySelector<HTMLDetailsElement>('.reading-settings');
+  const prose = document.querySelector<HTMLElement>('.prose');
+  if (settings && prose) {
+    const storageKey = 'article-font-sizes';
+    const desktop = window.matchMedia('(min-width: 1000px)');
+    const mobile = window.matchMedia('(max-width: 520px)');
+    const limits = { text: [14, 24], code: [12, 22] } as const;
+    type FontKind = keyof typeof limits;
+    let sizes: Partial<Record<FontKind, number>> = {};
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      for (const kind of ['text', 'code'] as const) {
+        const value = saved?.[kind];
+        if (Number.isInteger(value) && value >= limits[kind][0] && value <= limits[kind][1]) sizes[kind] = value;
+      }
+    } catch { /* Reading controls also work when storage is unavailable. */ }
+
+    const currentSize = (kind: FontKind) => sizes[kind] ?? (kind === 'text' ? (mobile.matches ? 15 : 16) : (mobile.matches ? 13 : 14));
+    const updateControls = () => {
+      for (const kind of ['text', 'code'] as const) {
+        const row = settings.querySelector<HTMLElement>(`[data-font="${kind}"]`)!;
+        const value = currentSize(kind);
+        row.querySelector('output')!.textContent = `${value}px`;
+        row.querySelector<HTMLButtonElement>('[data-step="-1"]')!.disabled = value <= limits[kind][0];
+        row.querySelector<HTMLButtonElement>('[data-step="1"]')!.disabled = value >= limits[kind][1];
+      }
+    };
+    const applySizes = (preservePosition = false) => {
+      // Keep the paragraph being read in place when earlier content reflows.
+      const anchor = preservePosition ? Array.from(prose.querySelectorAll<HTMLElement>('h2, h3, p, pre, table'))
+        .find(element => { const rect = element.getBoundingClientRect(); return rect.bottom > 120 && rect.top < innerHeight; }) : undefined;
+      const before = anchor?.getBoundingClientRect().top;
+      for (const kind of ['text', 'code'] as const) {
+        if (sizes[kind] === undefined) document.documentElement.style.removeProperty(`--article-${kind}-size`);
+        else document.documentElement.style.setProperty(`--article-${kind}-size`, `${sizes[kind]}px`);
+      }
+      updateControls();
+      document.dispatchEvent(new Event('article-font-change'));
+      if (anchor && before !== undefined) requestAnimationFrame(() => {
+        window.scrollBy({ top: anchor.getBoundingClientRect().top - before, behavior: 'instant' });
+      });
+    };
+    settings.querySelectorAll<HTMLButtonElement>('[data-step]').forEach(button => {
+      button.addEventListener('click', () => {
+        const kind = button.closest<HTMLElement>('[data-font]')!.dataset.font as FontKind;
+        sizes[kind] = Math.max(limits[kind][0], Math.min(limits[kind][1], currentSize(kind) + Number(button.dataset.step)));
+        applySizes(true);
+        try { localStorage.setItem(storageKey, JSON.stringify(sizes)); } catch { /* Optional persistence. */ }
+      });
+    });
+    settings.querySelector('.font-reset')?.addEventListener('click', () => {
+      sizes = {};
+      applySizes(true);
+      try { localStorage.removeItem(storageKey); } catch { /* Optional persistence. */ }
+    });
+    const syncLayout = () => { settings.open = desktop.matches; };
+    syncLayout();
+    desktop.addEventListener('change', syncLayout);
+    mobile.addEventListener('change', updateControls);
+    settings.querySelector('summary')?.addEventListener('click', event => {
+      if (desktop.matches) event.preventDefault();
+    });
+    settings.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !desktop.matches) {
+        event.stopPropagation();
+        settings.open = false;
+        settings.querySelector('summary')?.focus();
+      }
+    });
+    document.addEventListener('pointerdown', event => {
+      if (!desktop.matches && event.target instanceof Node && !settings.contains(event.target)) settings.open = false;
+    });
+    applySizes();
+  }
+</script>

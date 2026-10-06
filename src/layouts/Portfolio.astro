@@ -15,6 +15,18 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta name="theme-color" content="#fafaf7" />
     <title>{title}</title>
     {article && <link rel="stylesheet" href="/vendor/katex/katex.min.css" />}
+    {article && <script is:inline>
+      // Restore before the article is painted, including visits to deep links.
+      try {
+        const sizes = JSON.parse(localStorage.getItem('article-font-sizes') || '{}');
+        for (const [kind, min, max] of [['text', 14, 24], ['code', 12, 22]]) {
+          const value = sizes?.[kind];
+          if (Number.isInteger(value) && value >= min && value <= max) {
+            document.documentElement.style.setProperty(`--article-${kind}-size`, `${value}px`);
+          }
+        }
+      } catch { /* Defaults remain available without local storage. */ }
+    </script>}
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/rss+xml" title="yuzheng310 · 项目与笔记" href="/rss.xml" />

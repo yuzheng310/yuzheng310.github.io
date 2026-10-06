@@ -23,5 +23,6 @@
     });
     observer.observe(prose);
     document.fonts.ready.then(fitEquations);
+    document.addEventListener('article-font-change', fitEquations);
   }
 </script>
