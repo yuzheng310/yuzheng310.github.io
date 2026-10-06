@@ -1,0 +1,61 @@
+<svg class="svg-diagram" viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg">
+<style>
+              .box { rx: 6; stroke-width: 1.5; fill: #f8fafc; stroke: #cbd5e1; }
+              .box-active { rx: 6; stroke-width: 2; fill: #eff6ff; stroke: #3b82f6; }
+              .box-ffn { rx: 6; stroke-width: 2; fill: #fefce8; stroke: #eab308; }
+              .box-norm { rx: 4; stroke-width: 1.5; fill: #f1f5f9; stroke: #94a3b8; }
+              .txt-t { font-family: -apple-system, sans-serif; font-size: 13px; font-weight: 700; fill: #0f172a; text-anchor: middle; }
+              .txt-s { font-family: -apple-system, sans-serif; font-size: 11px; fill: #64748b; text-anchor: middle; }
+              .arrow { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+            </style>
+<defs>
+<marker id="arrowhead" markerHeight="7" markerWidth="7" orient="auto" refX="5" refY="3.5">
+<polygon fill="#64748b" points="0 0, 7 3.5, 0 7"></polygon>
+</marker>
+</defs>
+<!-- Input & Embedding -->
+<rect class="box" height="40" width="100" x="20" y="170"></rect>
+<text class="txt-t" x="70" y="195">Tokens</text>
+<line class="arrow" x1="120" x2="150" y1="190" y2="190"></line>
+<rect class="box-active" height="50" width="110" x="150" y="165"></rect>
+<text class="txt-t" x="205" y="188">Embedding</text>
+<text class="txt-s" x="205" y="204">W_e: (V, D)</text>
+<line class="arrow" x1="260" x2="300" y1="190" y2="190"></line>
+<!-- Transformer Layer Block -->
+<rect fill="none" height="330" rx="10" stroke="#94a3b8" stroke-dasharray="5 5" stroke-width="1.5" width="280" x="300" y="25"></rect>
+<text class="txt-t" fill="#2563eb" x="440" y="50">Transformer Layer (× L)</text>
+<!-- Pre-Norm 1 -->
+<rect class="box-norm" height="35" width="100" x="320" y="80"></rect>
+<text class="txt-t" x="370" y="102">RMSNorm</text>
+<line class="arrow" x1="420" x2="445" y1="97" y2="97"></line>
+<!-- Attention + RoPE -->
+<rect class="box-active" height="55" width="120" x="445" y="70"></rect>
+<text class="txt-t" x="505" y="94">GQA Attention</text>
+<text class="txt-s" x="505" y="112">+ RoPE 旋转位置编码</text>
+<!-- Residual 1 -->
+<path class="arrow" d="M 310 190 L 310 97 L 320 97"></path>
+<path class="arrow" d="M 505 125 L 505 155 L 450 155"></path>
+<circle cx="440" cy="155" fill="#fff" r="8" stroke="#64748b" stroke-width="1.5"></circle>
+<text fill="#64748b" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle" x="440" y="159">+</text>
+<!-- Pre-Norm 2 -->
+<rect class="box-norm" height="35" width="100" x="320" y="210"></rect>
+<text class="txt-t" x="370" y="232">RMSNorm</text>
+<line class="arrow" x1="420" x2="445" y1="227" y2="227"></line>
+<!-- SwiGLU FFN -->
+<rect class="box-ffn" height="55" width="120" x="445" y="200"></rect>
+<text class="txt-t" x="505" y="224">SwiGLU FFN</text>
+<text class="txt-s" x="505" y="242">Gate × Up → Down</text>
+<!-- Residual 2 -->
+<path class="arrow" d="M 440 163 L 440 280 L 495 280"></path>
+<path class="arrow" d="M 505 255 L 505 280"></path>
+<circle cx="505" cy="280" fill="#fff" r="8" stroke="#64748b" stroke-width="1.5"></circle>
+<text fill="#64748b" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle" x="505" y="284">+</text>
+<path class="arrow" d="M 513 280 L 580 280 L 580 190 L 610 190"></path>
+<!-- Final Norm & Unembedding -->
+<rect class="box-norm" height="40" width="130" x="610" y="140"></rect>
+<text class="txt-t" x="675" y="165">Final RMSNorm</text>
+<line class="arrow" x1="675" x2="675" y1="180" y2="205"></line>
+<rect class="box-active" height="50" width="130" x="610" y="205"></rect>
+<text class="txt-t" x="675" y="228">Unembedding</text>
+<text class="txt-s" x="675" y="244">W_u: (D, V) → Logits</text>
+</svg>

@@ -1,0 +1,34 @@
+<svg class="svg-diagram" viewBox="0 0 680 200" xmlns="http://www.w3.org/2000/svg">
+<style>
+              .cell-base { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1; }
+              .cell-attend { fill: #3b82f6; stroke: #1d4ed8; stroke-width: 1; }
+              .cell-mask { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1; opacity: 0.5; }
+              .txt-grid { font-family: -apple-system, sans-serif; font-size: 11px; fill: #64748b; text-anchor: middle; }
+            </style>
+<!-- 8x8 Grid representing Attention Matrix -->
+<g transform="translate(60, 20)">
+<text class="txt-grid" font-weight="bold" x="80" y="-8">标准全自注意力 (Causal O(N²))</text>
+<!-- Draw 8x8 cells for causal standard -->
+<!-- For i in 0..7, j in 0..i: attend -->
+<rect class="cell-attend" height="20" width="20" x="0" y="0"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="20"></rect><rect class="cell-attend" height="20" width="20" x="20" y="20"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="40"></rect><rect class="cell-attend" height="20" width="20" x="20" y="40"></rect><rect class="cell-attend" height="20" width="20" x="40" y="40"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="60"></rect><rect class="cell-attend" height="20" width="20" x="20" y="60"></rect><rect class="cell-attend" height="20" width="20" x="40" y="60"></rect><rect class="cell-attend" height="20" width="20" x="60" y="60"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="80"></rect><rect class="cell-attend" height="20" width="20" x="20" y="80"></rect><rect class="cell-attend" height="20" width="20" x="40" y="80"></rect><rect class="cell-attend" height="20" width="20" x="60" y="80"></rect><rect class="cell-attend" height="20" width="20" x="80" y="80"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="100"></rect><rect class="cell-attend" height="20" width="20" x="20" y="100"></rect><rect class="cell-attend" height="20" width="20" x="40" y="100"></rect><rect class="cell-attend" height="20" width="20" x="60" y="100"></rect><rect class="cell-attend" height="20" width="20" x="80" y="100"></rect><rect class="cell-attend" height="20" width="20" x="100" y="100"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="120"></rect><rect class="cell-attend" height="20" width="20" x="20" y="120"></rect><rect class="cell-attend" height="20" width="20" x="40" y="120"></rect><rect class="cell-attend" height="20" width="20" x="60" y="120"></rect><rect class="cell-attend" height="20" width="20" x="80" y="120"></rect><rect class="cell-attend" height="20" width="20" x="100" y="120"></rect><rect class="cell-attend" height="20" width="20" x="120" y="120"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="140"></rect><rect class="cell-attend" height="20" width="20" x="20" y="140"></rect><rect class="cell-attend" height="20" width="20" x="40" y="140"></rect><rect class="cell-attend" height="20" width="20" x="60" y="140"></rect><rect class="cell-attend" height="20" width="20" x="80" y="140"></rect><rect class="cell-attend" height="20" width="20" x="100" y="140"></rect><rect class="cell-attend" height="20" width="20" x="120" y="140"></rect><rect class="cell-attend" height="20" width="20" x="140" y="140"></rect>
+</g>
+<!-- 8x8 Grid representing Sliding Window Attention (W=3) -->
+<g transform="translate(420, 20)">
+<text class="txt-grid" font-weight="bold" x="80" y="-8">滑动窗口注意力 (Window W=3, O(NW))</text>
+<rect class="cell-attend" height="20" width="20" x="0" y="0"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="20"></rect><rect class="cell-attend" height="20" width="20" x="20" y="20"></rect>
+<rect class="cell-attend" height="20" width="20" x="0" y="40"></rect><rect class="cell-attend" height="20" width="20" x="20" y="40"></rect><rect class="cell-attend" height="20" width="20" x="40" y="40"></rect>
+<rect class="cell-attend" height="20" width="20" x="20" y="60"></rect><rect class="cell-attend" height="20" width="20" x="40" y="60"></rect><rect class="cell-attend" height="20" width="20" x="60" y="60"></rect>
+<rect class="cell-attend" height="20" width="20" x="40" y="80"></rect><rect class="cell-attend" height="20" width="20" x="60" y="80"></rect><rect class="cell-attend" height="20" width="20" x="80" y="80"></rect>
+<rect class="cell-attend" height="20" width="20" x="60" y="100"></rect><rect class="cell-attend" height="20" width="20" x="80" y="100"></rect><rect class="cell-attend" height="20" width="20" x="100" y="100"></rect>
+<rect class="cell-attend" height="20" width="20" x="80" y="120"></rect><rect class="cell-attend" height="20" width="20" x="100" y="120"></rect><rect class="cell-attend" height="20" width="20" x="120" y="120"></rect>
+<rect class="cell-attend" height="20" width="20" x="100" y="140"></rect><rect class="cell-attend" height="20" width="20" x="120" y="140"></rect><rect class="cell-attend" height="20" width="20" x="140" y="140"></rect>
+</g>
+</svg>

@@ -29,13 +29,17 @@ npm run build
 
 仓库 Settings → Pages 的发布来源为 GitHub Actions。项目使用账号根域名，不需要配置额外的 `base` 前缀。
 
-## HTML 翻译文章
+## 翻译与阅读笔记
 
-- 笔记元数据存放于 `src/content/blog/*.md`：`tags` 用于主题归档，`date` 表示本站发布日期。
-- `htmlFile` 指向 `src/documents/translations/` 内的完整 HTML。文章沿用原有阅读排版，并自动补上本站导航、作者、来源、翻译范围和标签。
-- 译文图片、公式库和代码高亮资源保存在 `public/translations/` 与 `public/vendor/`。第三方库许可证随资源保留，外链图片来源记录在 `scripts/translation-assets.json`。
-- 2026-10-06 收录 8 篇 HTML；已收录的 vLLM 译文不重复导入。Mooncake、Continuum 标注为论文精读，py-kvcache 标注为选章翻译。
-- 如需重新从原工作区导入，可运行 `uv run --with beautifulsoup4 python scripts/import-translations.py /path/to/workspace`。该命令会重新生成这 8 篇发布副本，不改动原始 HTML；重新导入前应保留发布副本上的手工修改。
-- CUDA 入门译文的静态样式通过 `npx tailwindcss -c scripts/translations-tailwind.cjs -o public/translations/cuda-from-zero-to-hero/tailwind.css --minify` 生成，不依赖运行时 Tailwind CDN。
+所有文章都使用 `src/content/blog/*.md` 和同一个文章模板。新文章不要嵌入完整 HTML 文档，也不携带独立的导航、页面 CSS 或脚本。
 
-发布前运行 `npm run build`，并检查译文图片、数学公式、目录链接与移动端阅读布局。`llm-inference-explained` 的来源文件仅保留 Avi Chawla 的作者主页，文章直链仍待补；其中演示视频保留外部链接。
+- `tags` 用于主题归档，`date` 表示本站发布日期。
+- `sourceURL`、`sourceAuthor`、`translationScope` 统一显示原文来源、作者和整理范围。
+- 使用 Markdown 标题、列表、表格、代码块；图表保存在 `public/translations/`。必要时可用语义化 `figure` / `figcaption`，不添加内联样式。
+- 数学公式通过统一的 remark-math / rehype-katex 在构建时渲染，使用 `$…$` 或独立的 `$$` 公式块。公式不依赖文章自己的浏览器脚本。
+- 8 篇 HTML 发布副本留在 `references/translations/` 作为改写参考，不参与网站渲染。站内正文以 Markdown 为准，后续修改直接编辑正文；旧的全页 HTML 导入器已移除，避免覆盖编辑结果。
+- 图片来源记录于 `scripts/translation-assets.json`；第三方资源许可证保留。
+
+Mooncake、Continuum 为论文精读改写，py-kvcache 为选章译文整理。`llm-inference-explained` 的来源文件仅保留 Avi Chawla 的作者主页，文章直链待补。
+
+发布前运行 `npm run build`，检查站内链接、公式、图片、目录和移动端布局。

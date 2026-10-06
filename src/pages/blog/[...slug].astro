@@ -3,22 +3,23 @@ import { getCollection } from 'astro:content';
 import Portfolio from '../../layouts/Portfolio.astro';
 import ArticleNavigation from '../../components/ArticleNavigation.astro';
 import NoteTags from '../../components/NoteTags.astro';
-import { renderTranslation } from '../../lib/translation';
 export async function getStaticPaths() {
   const items = await getCollection('blog', ({ data }) => !data.draft);
   return items.map(item => ({ params: { slug: item.slug }, props: { item } }));
 }
 const { item } = Astro.props;
-const translatedDocument = item.data.htmlFile ? renderTranslation(item, Astro.site) : null;
-if (translatedDocument) {
-  return new Response(translatedDocument, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-}
 const { Content } = await item.render();
 ---
 <Portfolio title={`${item.data.title} · yuzheng310`} description={item.data.description} active="blog" article>
   <article>
     <a class="back" href="/blog/">← 全部笔记</a>
-    <header class="article-header"><p class="eyebrow">技术笔记</p><h1>{item.data.title}</h1><p class="deck">{item.data.description}</p><p class="article-meta"><time datetime={item.data.date.toISOString()}>{item.data.date.toISOString().slice(0, 10)}</time>{item.data.repoURL && <span> · <a href={item.data.repoURL}>相关源码 ↗</a></span>}</p><NoteTags tags={item.data.tags} /></header>
+    <header class="article-header"><p class="eyebrow">{item.data.sourceURL ? '翻译与阅读笔记' : '技术笔记'}</p><h1>{item.data.title}</h1><p class="deck">{item.data.description}</p><p class="article-meta"><time datetime={item.data.date.toISOString()}>{item.data.date.toISOString().slice(0, 10)}</time>{item.data.repoURL && <span> · <a href={item.data.repoURL}>相关源码 ↗</a></span>}</p><NoteTags tags={item.data.tags} /></header>
+    {item.data.sourceURL && <aside class="article-source" aria-label="原文与整理说明">
+      <p><span>原作者</span>{item.data.sourceAuthor}</p>
+      <p><span>来源</span><a href={item.data.sourceURL} rel="noreferrer">{item.slug === 'llm-inference-explained' ? 'Avi Chawla 的作者主页 ↗' : '阅读原文 ↗'}</a></p>
+      <p><span>整理范围</span>{item.data.translationScope}</p>
+      {item.slug === 'llm-inference-explained' && <p class="source-note">本地译稿仅保留作者主页，原文章直链待补。</p>}
+    </aside>}
     <ArticleNavigation />
     <div class="prose"><Content /></div>
     <div class="article-end"><a href="/blog/">← 返回笔记列表</a><a href="#main">回到顶部 ↑</a></div>
