@@ -9,6 +9,6 @@ export async function getStaticPaths() {
 }
 const { tag } = Astro.props;
 ---
-<Portfolio title={`${tag} · 笔记 · yuzheng310`} description={`浏览「${tag}」相关的技术笔记，按发布日期排列。`} active="blog">
+<Portfolio title={`${tag} · 笔记 · yuzheng`} description={`浏览「${tag}」相关的技术笔记，按发布日期排列。`} active="blog">
   <NotesArchive activeTag={tag} />
 </Portfolio>

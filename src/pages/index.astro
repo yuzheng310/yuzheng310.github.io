@@ -10,18 +10,29 @@ const projects = [
 ---
 <Portfolio wide>
   <section class="intro" aria-labelledby="intro-title">
-    <p class="eyebrow">你好，我是 yuzheng310</p>
-    <h1 id="intro-title">写代码，<br />研究系统如何工作<span class="accent">。</span></h1>
-    <p class="intro-description">我关注大模型推理、代码 Agent 和数据库系统。<br class="wide-only" />从执行效率到状态与一致性，记录自己做过的工程、遇到的问题和做出的取舍。</p>
-    <div class="intro-links"><a class="primary-link" href="#projects">了解我的项目 <span aria-hidden="true">↓</span></a><a href="/about/">更多关于我 <span aria-hidden="true">↗</span></a><a href="https://github.com/yuzheng310">GitHub <span aria-hidden="true">↗</span></a></div>
-    <div class="focus-line"><span>关注方向</span><p>LLM Inference <i aria-hidden="true">/</i> Code Agents <i aria-hidden="true">/</i> Database Systems</p></div>
+    <div class="intro-copy">
+      <p class="eyebrow">你好，我是 yuzheng</p>
+      <h1 id="intro-title">写代码，<br />研究系统如何工作<span class="accent">。</span></h1>
+      <p class="intro-description">我关注大模型推理、代码 Agent 和数据库系统。<br class="wide-only" />从执行效率到状态与一致性，记录自己做过的工程、遇到的问题和做出的取舍。</p>
+      <div class="intro-links"><a class="primary-link" href="#projects">了解我的项目 <span aria-hidden="true">↓</span></a><a href="/about/">更多关于我 <span aria-hidden="true">↗</span></a><a href="https://github.com/yuzheng310">GitHub <span aria-hidden="true">↗</span></a></div>
+    </div>
+    <aside class="profile-card" aria-label="个人名片">
+      <div class="profile-top"><span class="eyebrow">A PERSONAL NOTEBOOK</span><span class="profile-star" aria-hidden="true">✳</span></div>
+      <img class="profile-avatar" src="/favicon.svg" width="84" height="84" alt="yuzheng 的字母 y 头像" />
+      <p class="profile-name">yuzheng<span class="accent">.</span></p>
+      <p class="profile-caption">在工程中实践，在笔记中想清楚。</p>
+      <div class="profile-topics" aria-label="关注方向">
+        {projects.map(project => <a href={`/projects/${project.slug}/`}><span>{project.field}</span><span aria-hidden="true">↗</span></a>)}
+      </div>
+      <p class="profile-footnote">BUILD · UNDERSTAND · SHARE</p>
+    </aside>
   </section>
   <section class="home-section" id="projects" aria-labelledby="projects-title">
     <div class="section-heading"><div><p class="eyebrow">SELECTED WORK</p><h2 id="projects-title">从项目认识我</h2></div><a href="/projects/">全部项目 <span aria-hidden="true">↗</span></a></div>
     <div class="selected-projects">{projects.map(project => <article class="project-row"><div class="project-number">{project.number}<span>{project.field}</span></div><div class="project-body"><h3><a href={`/projects/${project.slug}/`}>{project.title}<span aria-hidden="true">↗</span></a></h3><p>{project.description}</p><ul class="topic-list" aria-label="项目重点">{project.topics.map(topic => <li>{topic}</li>)}</ul></div><div class="project-actions"><a href={`/projects/${project.slug}/`} aria-label={`阅读 ${project.title} 项目记录`}>项目记录 <span aria-hidden="true">→</span></a>{project.repo && <a href={project.repo}>公开源码 ↗</a>}</div></article>)}</div>
   </section>
-  <section class="home-section" aria-labelledby="notes-title">
-    <div class="section-heading"><div><p class="eyebrow">NOTES & IDEAS</p><h2 id="notes-title">实现之外，再想一步</h2></div><a href="/blog/">全部笔记 <span aria-hidden="true">↗</span></a></div>
+  <section class="home-section home-notes" aria-labelledby="notes-title">
+    <div class="section-heading"><div><p class="eyebrow">NOTES & IDEAS</p><h2 id="notes-title">实现之外，<br class="notes-break" />再想一步</h2><p class="section-description">工程记录、论文翻译，<br />以及值得多问一个为什么的问题。</p></div><a href="/blog/">全部笔记 <span aria-hidden="true">↗</span></a></div>
     <div class="note-list">{notes.map(note => <a href={`/blog/${note.slug}/`}><time datetime={note.data.date.toISOString()}>{note.data.date.toISOString().slice(0, 10).replaceAll('-', '.')}</time><span class="home-note-content"><span>{note.data.title}</span><span class="home-note-tags">{note.data.tags.map(tag => <span class:list={{ 'translation-label': tag === '翻译' }}>{tag}</span>)}</span></span><span class="note-arrow" aria-hidden="true">↗</span></a>)}</div>
   </section>
   <aside class="currently"><p class="eyebrow">正在关注</p><p>会话 KV 的生命周期、CPU offload 的适用边界，<br class="wide-only" />以及推理层与上层 Agent 的职责划分。</p><a href="/rss.xml">通过 RSS 订阅更新 <span aria-hidden="true">↗</span></a></aside>

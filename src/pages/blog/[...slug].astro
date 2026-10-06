@@ -11,7 +11,7 @@ export async function getStaticPaths() {
 const { item } = Astro.props;
 const { Content } = await item.render();
 ---
-<Portfolio title={`${item.data.title} · yuzheng310`} description={item.data.description} active="blog" article>
+<Portfolio title={`${item.data.title} · yuzheng`} description={item.data.description} active="blog" article>
   <article class="article-layout">
     <ArticleNavigation />
     <div class="article-main">

@@ -6,7 +6,7 @@ tags: ["大模型推理", "GPU 优化", "CUDA Graph", "性能分析"]
 repoURL: https://github.com/yuzheng310/qwen3-runtime
 ---
 
-> **作者**：肖小云（yuzheng310） | **发布时间**：2026年9月15日  
+> **作者**：肖小云（yuzheng） | **发布时间**：2026年9月15日\
 > **副标题**：使用 Nsight Systems 定位同步、传输与 Kernel 启动开销，集成 FlashInfer 分页注意力、融合 Norm/RoPE、按需 LM Head 与 Decode CUDA Graph  
 > **基准对象**：Qwen3-4B BF16 在单卡 NVIDIA RTX 4090 上的端到端 Serving 执行路径  
 > **源码仓库**：[yuzheng310/qwen3-runtime](https://github.com/yuzheng310/qwen3-runtime)
