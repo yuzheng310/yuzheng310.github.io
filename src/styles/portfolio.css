@@ -6,6 +6,7 @@
   --line: #dedfd8;
   --accent: #35644f;
   --wash: #eef1e9;
+  --code-paper: #f1f3ed;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 28px; }
@@ -128,7 +129,7 @@ footer a:hover { text-decoration: underline; }
 .prose table { display: block; overflow-x: auto; font-size: 13px; border-collapse: collapse; max-width: 100%; margin: 24px 0; }
 .prose th, .prose td { padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; min-width: 85px; }
 .prose th { background: var(--wash); }
-.prose pre { font-size: 13px; line-height: 1.7; padding: 20px; overflow-x: auto; border-radius: 5px; background: #24292e !important; color: #e1e4e8 !important; border: 1px solid #323842; margin: 26px 0; }
+.prose pre { font-size: 14px; line-height: 1.75; padding: 20px; overflow-x: auto; border-radius: 5px; background: var(--code-paper) !important; color: #30382f !important; border: 1px solid var(--line); margin: 26px 0; tab-size: 4; }
 .prose pre code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: inherit; line-height: inherit; background: transparent !important; padding: 0 !important; color: inherit !important; border: none !important; }
 .prose :not(pre) > code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .875em; background: var(--wash); padding: 2px 5px; border-radius: 3px; border: 1px solid var(--line); color: var(--text); }
 .prose img { display: block; max-width: 100%; height: auto; margin: 26px auto; border-radius: 3px; }
@@ -173,7 +174,7 @@ footer a:hover { text-decoration: underline; }
   footer > div { gap: 12px; }
   .prose { font-size: 15px; }
   .prose h2 { font-size: 21px; }
-  .prose pre { padding: 16px; font-size: 12px; }
+  .prose pre { padding: 16px; font-size: 13px; }
 
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

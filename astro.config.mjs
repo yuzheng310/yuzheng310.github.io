@@ -9,6 +9,10 @@ import rehypeKatex from "rehype-katex";
 export default defineConfig({
   site: "https://yuzheng310.github.io",
   devToolbar: { enabled: false },
-  markdown: { remarkPlugins: [remarkMath], rehypePlugins: [rehypeKatex] },
+  markdown: {
+    remarkPlugins: [remarkMath],
+    rehypePlugins: [rehypeKatex],
+    shikiConfig: { theme: "github-light-high-contrast" },
+  },
   integrations: [mdx(), sitemap(), tailwind()],
 });
