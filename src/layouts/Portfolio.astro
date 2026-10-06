@@ -27,6 +27,9 @@ const canonical = new URL(active === '404' ? '/404.html' : Astro.url.pathname, A
     {article && <script is:inline>
       // Restore before the article is painted, including visits to deep links.
       try {
+        if (localStorage.getItem('article-sidebar') === 'collapsed') document.documentElement.dataset.articleSidebar = 'collapsed';
+      } catch { /* The sidebar defaults to expanded. */ }
+      try {
         const sizes = JSON.parse(localStorage.getItem('article-font-sizes') || '{}');
         for (const [kind, min, max] of [['text', 14, 24], ['code', 12, 22]]) {
           const value = sizes?.[kind];

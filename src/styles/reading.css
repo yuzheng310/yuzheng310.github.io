@@ -1,6 +1,7 @@
 /* Reading navigation stays available while the article scrolls. */
 .article-layout { min-width: 0; }
 .article-main { min-width: 0; }
+.sidebar-toggle { display: none; }
 .article-navigation { position: sticky; top: 0; z-index: 20; min-height: 49px; margin: 0 0 28px; border-bottom: 1px solid var(--line); background: var(--paper); font-size: 13px; line-height: 1.6; }
 .article-navigation summary { cursor: pointer; padding: 14px 0; font-weight: 600; color: var(--text); }
 .article-navigation summary span { float: right; font-weight: 400; }
@@ -32,10 +33,18 @@
   .article-layout { display: grid; grid-template-columns: 224px minmax(0, 760px); gap: 64px; align-items: start; }
   .article-main { grid-column: 2; }
   .article-navigation { top: 28px; margin: 0; padding: 0; border: 0; }
+  .sidebar-toggle:not([hidden]) { display: flex; align-items: center; gap: 8px; min-height: 40px; margin-bottom: 18px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--muted); font: inherit; cursor: pointer; }
+  .sidebar-toggle svg { width: 18px; height: 18px; flex: none; }
+  .sidebar-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--wash); }
+  .sidebar-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  [data-article-sidebar=collapsed] .article-layout { grid-template-columns: 40px minmax(0, 860px); gap: 32px; max-width: 932px; margin-inline: auto; }
+  [data-article-sidebar=collapsed] #reading-sidebar-panel { display: none; }
+  [data-article-sidebar=collapsed] .sidebar-toggle span { display: none; }
+  [data-article-sidebar=collapsed] .sidebar-chevron { transform: rotate(180deg); transform-origin: 14.5px 12px; }
   .article-navigation summary { list-style: none; cursor: default; padding: 0 10px 16px; }
   .article-navigation summary::-webkit-details-marker { display: none; }
   .article-navigation summary span { display: none; }
-  .article-navigation ol { max-height: calc(100dvh - 280px); border-left: 1px solid var(--line); padding-bottom: 0; }
+  .article-navigation ol { max-height: calc(100dvh - 338px); border-left: 1px solid var(--line); padding-bottom: 0; }
   .reading-settings, .reading-settings[open] { position: static; width: auto; margin-bottom: 18px; padding: 0 0 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; }
   .article-navigation .reading-settings summary { text-align: left; padding: 0 0 12px; color: var(--text); }
 }
