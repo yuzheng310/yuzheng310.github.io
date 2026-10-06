@@ -1,0 +1,14 @@
+---
+import { getCollection } from 'astro:content';
+import Portfolio from '../../../layouts/Portfolio.astro';
+import NotesArchive from '../../../components/NotesArchive.astro';
+export async function getStaticPaths() {
+  const items = await getCollection('blog', ({ data }) => !data.draft);
+  const tags = [...new Set(items.flatMap(item => item.data.tags))];
+  return tags.map(tag => ({ params: { tag }, props: { tag } }));
+}
+const { tag } = Astro.props;
+---
+<Portfolio title={`${tag} · 笔记 · yuzheng310`} description={`浏览「${tag}」相关的技术笔记，按发布日期排列。`} active="blog">
+  <NotesArchive activeTag={tag} />
+</Portfolio>

@@ -1,13 +1,26 @@
 ---
-import {getCollection} from 'astro:content';
+import { getCollection } from 'astro:content';
 import Portfolio from '../../layouts/Portfolio.astro';
+import ArticleNavigation from '../../components/ArticleNavigation.astro';
+import NoteTags from '../../components/NoteTags.astro';
+import { renderTranslation } from '../../lib/translation';
 export async function getStaticPaths() {
- const items=await getCollection('blog',({data})=>!data.draft);
- return items.map(item=>({params:{slug:item.slug},props:{item}}));
+  const items = await getCollection('blog', ({ data }) => !data.draft);
+  return items.map(item => ({ params: { slug: item.slug }, props: { item } }));
 }
-const {item}=Astro.props;
-const {Content}=await item.render();
+const { item } = Astro.props;
+const translatedDocument = item.data.htmlFile ? renderTranslation(item, Astro.site) : null;
+if (translatedDocument) {
+  return new Response(translatedDocument, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+const { Content } = await item.render();
 ---
-<Portfolio title={`${item.data.title} · yuzheng310`} description={item.data.description} active="blog">
-<article><a class="back" href="/blog/">← 全部笔记</a><header class="article-header"><h1>{item.data.title}</h1><p class="deck">{item.data.description}</p><p class="article-meta">笔记记录{item.data.repoURL && <span> · <a href={item.data.repoURL}>源码 ↗</a></span>}</p></header><div class="prose"><Content/></div><div class="article-end"><a href="/blog/">返回笔记列表</a></div></article>
+<Portfolio title={`${item.data.title} · yuzheng310`} description={item.data.description} active="blog" article>
+  <article>
+    <a class="back" href="/blog/">← 全部笔记</a>
+    <header class="article-header"><p class="eyebrow">技术笔记</p><h1>{item.data.title}</h1><p class="deck">{item.data.description}</p><p class="article-meta"><time datetime={item.data.date.toISOString()}>{item.data.date.toISOString().slice(0, 10)}</time>{item.data.repoURL && <span> · <a href={item.data.repoURL}>相关源码 ↗</a></span>}</p><NoteTags tags={item.data.tags} /></header>
+    <ArticleNavigation />
+    <div class="prose"><Content /></div>
+    <div class="article-end"><a href="/blog/">← 返回笔记列表</a><a href="#main">回到顶部 ↑</a></div>
+  </article>
 </Portfolio>

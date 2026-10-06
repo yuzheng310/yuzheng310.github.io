@@ -1,0 +1,342 @@
+[
+  {
+    "url": "https://pbs.twimg.com/profile_images/1867886822111780864/ow-ytzg5_400x400.jpg",
+    "path": "/translations/images/f91fb165c783f597.jpg",
+    "bytes": 6727
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFZNgSXMAAletn?format=webp&name=large",
+    "path": "/translations/images/9c8612e7d31e2ffc.webp",
+    "bytes": 129136
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFaPbEW0AA8XmK.jpg",
+    "path": "/translations/images/76456e11e5f7e010.jpg",
+    "bytes": 99145
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFa-4dWUAAloWs.jpg",
+    "path": "/translations/images/6ee9c97bc151708f.jpg",
+    "bytes": 210773
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFdTyAXgAA9cC4.jpg",
+    "path": "/translations/images/bb9b7741fc91a738.jpg",
+    "bytes": 142233
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFbdGTXUAAtOLX.jpg",
+    "path": "/translations/images/4c9fe17072c26d0b.jpg",
+    "bytes": 79756
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFdbLlXgAAB3_T.jpg",
+    "path": "/translations/images/f9b5991d3dde3d98.jpg",
+    "bytes": 64858
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFb3yAW8AAsivk.jpg",
+    "path": "/translations/images/fabc9e33f94e8677.jpg",
+    "bytes": 216139
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFcDPyWwAAe9oP.jpg",
+    "path": "/translations/images/75455b3519411318.jpg",
+    "bytes": 110559
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HTFciW0X0AAWcjg.jpg",
+    "path": "/translations/images/3fcc6b3538c9481d.jpg",
+    "bytes": 31996
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/predict_memory_tool.png",
+    "path": "/translations/images/f5419021f764b872.png",
+    "bytes": 26517
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/gradaccumulation_diag.png",
+    "path": "/translations/images/43362c600ec95768.png",
+    "bytes": 23338
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/dp_diagram.png",
+    "path": "/translations/images/ab10934ad50bb88c.png",
+    "bytes": 25006
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/dp_overlap1.svg",
+    "path": "/translations/images/d2f53c38c3513899.svg",
+    "bytes": 35034
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/dp_scaling.svg",
+    "path": "/translations/images/378bde8ed8f843b9.svg",
+    "bytes": 46890
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/zero_memory.svg",
+    "path": "/translations/images/cf13cda3613eecb5.svg",
+    "bytes": 266935
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/dp_zero3_overlap.svg",
+    "path": "/translations/images/bc4a583860b50839.svg",
+    "bytes": 46000
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/tp_diagram.svg",
+    "path": "/translations/images/c89af8ec1cf8fadb.svg",
+    "bytes": 11560
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/tp_sp_overlap.svg",
+    "path": "/translations/images/53d132e54c4b58b3.svg",
+    "bytes": 39563
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/cp_attnmask.svg",
+    "path": "/translations/images/23059ae7e3c3242c.svg",
+    "bytes": 75290
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/cp_zigzagmask.svg",
+    "path": "/translations/images/e6dc434ebde9d03b.svg",
+    "bytes": 75290
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/pp_afab.svg",
+    "path": "/translations/images/b82e7b725dab667f.svg",
+    "bytes": 31298
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/pp_1f1b.svg",
+    "path": "/translations/images/9d686f877fa41d8a.svg",
+    "bytes": 63605
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/pp_1f1b_interleaved.svg",
+    "path": "/translations/images/da7d0a1da5139a54.svg",
+    "bytes": 149106
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/pp_zerobubble_dualpipe.png",
+    "path": "/translations/images/c6072e9083a4a42d.png",
+    "bytes": 52468
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/ep_moe.png",
+    "path": "/translations/images/2857e3e4831b3e1b.png",
+    "bytes": 27103
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/5d_full.svg",
+    "path": "/translations/images/b4edd788e8b3f07b.svg",
+    "bytes": 76874
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/what_we_learnt_heatmap.svg",
+    "path": "/translations/images/e9efff078cc2522f.svg",
+    "bytes": 123564
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/diving_primergpu.svg",
+    "path": "/translations/images/8293af59fba60ce0.svg",
+    "bytes": 98902
+  },
+  {
+    "url": "https://nanotron-ultrascale-playbook.static.hf.space/assets/images/flashattn.png",
+    "path": "/translations/images/d9ea93f2218f9a26.png",
+    "bytes": 19449
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/Roofline_background.png",
+    "path": "/translations/images/0c854f453d50a29f.png",
+    "bytes": 149217
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/CUDA_thread_hierarchy.png",
+    "path": "/translations/images/de9188d582302ecd.png",
+    "bytes": 362105
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/naive-kernel.png",
+    "path": "/translations/images/ad64a36315c3dd92.png",
+    "bytes": 254906
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/Tile_quantization.png",
+    "path": "/translations/images/9b57f0c5f4992d59.png",
+    "bytes": 108421
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/naive_kernel_mem_access.png",
+    "path": "/translations/images/26b1f6d3d6f388ef.png",
+    "bytes": 1547746
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/threadId_to_warp_mapping.png",
+    "path": "/translations/images/191d4d0ea1b160e8.png",
+    "bytes": 167978
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/GMEM_coalescing.png",
+    "path": "/translations/images/43eafba470c39c90.png",
+    "bytes": 229321
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/random_access_coalescing.png",
+    "path": "/translations/images/9b37600abbd2c9fd.png",
+    "bytes": 195599
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/Naive_kernel_mem_coalescing.png",
+    "path": "/translations/images/125208e5f8cc539e.png",
+    "bytes": 254076
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/Naive_kernel_improved_access.png",
+    "path": "/translations/images/a01340e520577c58.png",
+    "bytes": 638768
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/memory-hierarchy-in-gpus.png",
+    "path": "/translations/images/86f2d45966b616c0.png",
+    "bytes": 35111
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/cache-blocking.png",
+    "path": "/translations/images/b906f5715b790d1f.png",
+    "bytes": 310557
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/roofline_kernel_3.png",
+    "path": "/translations/images/9560b1273050a968.png",
+    "bytes": 158918
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/Cusp_behaviour.png",
+    "path": "/translations/images/4a450b4213809321.png",
+    "bytes": 32879
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/kernel_3_profiler_instr_mix.png",
+    "path": "/translations/images/78132f97b7ca58af.png",
+    "bytes": 14885
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/kernel_3_profiler_warp_stalls.png",
+    "path": "/translations/images/9eb938a4ae70c819.png",
+    "bytes": 34934
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/kernel_4_1D_blocktiling.png",
+    "path": "/translations/images/a22140a5eb944473.png",
+    "bytes": 638424
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/Kernel_4_profiler_warp_stalls.png",
+    "path": "/translations/images/bc153126b7e4f362.png",
+    "bytes": 38590
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/1d_warp_tiling.png",
+    "path": "/translations/images/59ba73e36bd43ca9.png",
+    "bytes": 230967
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/raising_arith_inten.png",
+    "path": "/translations/images/4216cabf40cd4bee.png",
+    "bytes": 360615
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/kernel_5_GMEM_loading.png",
+    "path": "/translations/images/6640bc3e33eb8c58.png",
+    "bytes": 166985
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/kernel_5_reg_blocking.png",
+    "path": "/translations/images/e5f721592a4d3736.png",
+    "bytes": 295106
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/kernel_6_As_transpose.png",
+    "path": "/translations/images/32e37a7ae72d0e30.png",
+    "bytes": 379068
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/Loop_structure.png",
+    "path": "/translations/images/84794bdf8623e6d6.png",
+    "bytes": 74613
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/WarpSchedulers.png",
+    "path": "/translations/images/c9f98bf7682b8d48.png",
+    "bytes": 501137
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/kernel_10_warp_tiling.png",
+    "path": "/translations/images/e7c96ea812fa849b.png",
+    "bytes": 2017388
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/cublas_vs_kernel_10_sizes.png",
+    "path": "/translations/images/55da74a57da8e880.png",
+    "bytes": 197801
+  },
+  {
+    "url": "https://siboehm.com/assets/img/CUDA-MMM/split_k.png",
+    "path": "/translations/images/3fb52bab88db4053.png",
+    "bytes": 174193
+  },
+  {
+    "url": "https://pbs.twimg.com/profile_images/1868297128801390593/Ovl677JQ_normal.jpg",
+    "path": "/translations/images/75d6be0e60c614e7.jpg",
+    "bytes": 2035
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5hjIyaQAAXKZW.jpg",
+    "path": "/translations/images/27b90a08853d18c0.jpg",
+    "bytes": 43492
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5e4aPb0AEgpmT.png",
+    "path": "/translations/images/8a28bc942dc98287.png",
+    "bytes": 75879
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5f0d9bgAAdUAy.jpg",
+    "path": "/translations/images/49107fb3f4394d2c.jpg",
+    "bytes": 53246
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5hsJdaIAAyZTn.png",
+    "path": "/translations/images/5ee96e653e45a88c.png",
+    "bytes": 108728
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5gSrVbcAE0xn0.jpg",
+    "path": "/translations/images/a40caa3fa61cd446.jpg",
+    "bytes": 209310
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5gahpa0AAlV11.jpg",
+    "path": "/translations/images/7cae05909a4d4903.jpg",
+    "bytes": 106759
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5gfxjaEAAFdYg.jpg",
+    "path": "/translations/images/09eca78d8f3eff44.jpg",
+    "bytes": 183535
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5go2paAAAqU6M.jpg",
+    "path": "/translations/images/80adc57aac1c3725.jpg",
+    "bytes": 218440
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HL5g2udbQAEdk40.png",
+    "path": "/translations/images/1764333cf2c6113c.png",
+    "bytes": 75551
+  }
+]

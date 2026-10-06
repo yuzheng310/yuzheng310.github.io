@@ -1,0 +1,19 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import NoteTags from './NoteTags.astro';
+interface Props { items: CollectionEntry<'blog'>[]; }
+const { items } = Astro.props;
+const sorted = [...items].sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf() || a.slug.localeCompare(b.slug));
+const years = [...new Set(sorted.map(item => item.data.date.getUTCFullYear()))];
+---
+<div class="note-timeline">
+  {years.map(year => <section class="timeline-year" aria-labelledby={`year-${year}`}>
+    <h2 id={`year-${year}`}>{year}<span>{sorted.filter(item => item.data.date.getUTCFullYear() === year).length} 篇</span></h2>
+    <ol class="timeline-entries">
+      {sorted.filter(item => item.data.date.getUTCFullYear() === year).map(item => <li class="timeline-entry">
+        <time datetime={item.data.date.toISOString().slice(0, 10)}>{item.data.date.toISOString().slice(5, 10).replace('-', '.')}</time>
+        <article><h3><a href={`/blog/${item.slug}/`}>{item.data.title}</a></h3><p>{item.data.description}</p><NoteTags tags={item.data.tags} /></article>
+      </li>)}
+    </ol>
+  </section>)}
+</div>

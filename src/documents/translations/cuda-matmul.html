@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>从零开始优化 CUDA 矩阵乘法 Kernel 达到接近 cuBLAS 性能：实战工作日志</title>
+<style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-light: #64748b;
+      --accent: #0284c7;
+      --accent-hover: #0369a1;
+      --accent-bg: #e0f2fe;
+      --border-color: #e2e8f0;
+      --highlight-bg: #fef08a;
+      --highlight-border: #eab308;
+      --comment-bg: #fef9c3;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #0b1120;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --text-light: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #7dd3fc;
+      --accent-bg: #0369a133;
+      --border-color: #334155;
+      --highlight-bg: #854d0e88;
+      --highlight-border: #ca8a04;
+      --comment-bg: #713f1244;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.75;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* 顶部阅读进度条 */
+    #reading-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #0284c7, #6366f1);
+      width: 0%;
+      z-index: 1000;
+      transition: width 0.1s;
+    }
+
+    /* 顶部导航与控制栏 */
+    header.top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 24px;
+    }
+    [data-theme="dark"] header.top-nav {
+      background: rgba(11, 17, 32, 0.94);
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-tag {
+      background: var(--accent-bg);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(2, 132, 199, 0.2);
+    }
+
+    .nav-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mode-group {
+      display: flex;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 3px;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      padding: 5px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .mode-btn.active {
+      background: var(--bg-primary);
+      color: var(--accent);
+      box-shadow: var(--shadow-sm);
+      font-weight: 600;
+    }
+
+    .action-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+    .action-btn:hover { background: var(--accent-hover); }
+
+    .action-btn.secondary {
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .action-btn.secondary:hover { background: var(--bg-tertiary); }
+
+    .theme-toggle-btn {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    /* 主阅读区布局 */
+    .page-layout {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 40px;
+      padding: 40px 24px 100px;
+      position: relative;
+    }
+
+    /* 目录侧边栏 (TOC) */
+    .toc-sidebar {
+      width: 250px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 80px;
+      height: calc(100vh - 100px);
+      overflow-y: auto;
+      padding-right: 12px;
+      border-right: 1px solid var(--border-color);
+      font-size: 13.5px;
+    }
+
+    .toc-title {
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-light);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toc-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .toc-item {
+      margin-bottom: 6px;
+    }
+
+    .toc-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      display: block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      line-height: 1.4;
+      transition: all 0.15s ease;
+    }
+
+    .toc-link:hover, .toc-link.active {
+      color: var(--accent);
+      background: var(--accent-bg);
+      font-weight: 600;
+    }
+
+    .article-main {
+      flex: 1;
+      max-width: 860px;
+      min-width: 0;
+    }
+
+    /* 文章头部 */
+    .article-header {
+      margin-bottom: 36px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 28px;
+    }
+
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: var(--text-light);
+      flex-wrap: wrap;
+    }
+
+    .author-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: var(--text-main);
+      text-decoration: none;
+    }
+
+    h1.article-title {
+      font-size: 32px;
+      line-height: 1.35;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      color: var(--text-main);
+    }
+
+    .article-lead {
+      font-size: 17.5px;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* 封面大图 */
+    .hero-figure {
+      margin: 24px 0 36px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+    }
+    .hero-figure img { width: 100%; height: auto; display: block; }
+
+    /* 正文容器 */
+    .content-area { position: relative; }
+    .content-area.editable-active {
+      outline: 2px dashed rgba(2, 132, 199, 0.4);
+      outline-offset: 8px;
+      border-radius: 8px;
+    }
+
+    h2.section-heading {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 48px 0 20px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      scroll-margin-top: 70px;
+    }
+
+    h2.section-heading .heading-num {
+      color: var(--accent);
+      font-size: 20px;
+      font-family: var(--font-mono);
+    }
+
+    h3.sub-heading {
+      font-size: 19px;
+      font-weight: 600;
+      margin: 28px 0 14px;
+      scroll-margin-top: 70px;
+    }
+
+    p { margin-bottom: 18px; color: var(--text-muted); }
+    strong { color: var(--text-main); font-weight: 600; }
+    ul, ol { margin-bottom: 20px; padding-left: 24px; color: var(--text-muted); }
+    li { margin-bottom: 8px; }
+
+    /* 提示卡片与边注 */
+    .callout-box {
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent);
+      padding: 16px 20px;
+      border-radius: 0 10px 10px 0;
+      margin: 24px 0;
+    }
+    .callout-box.tip { border-left-color: #10b981; background: rgba(16, 185, 129, 0.06); }
+    .callout-box.info { border-left-color: #0284c7; background: rgba(2, 132, 199, 0.06); }
+    .callout-box.warning { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
+
+    /* 优雅折叠边注 (Sidenotes) */
+    .sidenote-badge {
+      display: inline-block;
+      background: var(--bg-tertiary);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: bold;
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin: 0 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .sidenote-card {
+      margin: 12px 0 18px 12px;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border-left: 3px solid var(--accent);
+      font-size: 13.5px;
+      border-radius: 0 8px 8px 0;
+      color: var(--text-muted);
+    }
+
+    /* 代码块排版 */
+    
+    /* 专业 IDE 代码窗口风格 */
+    .code-window {
+      margin: 28px 0;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #161b22;
+      padding: 9px 16px;
+      border-bottom: 1px solid #30363d;
+      font-size: 13px;
+    }
+    .mac-dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .mac-dots .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+    .mac-dots .dot.red { background: #ff5f56; }
+    .mac-dots .dot.yellow { background: #ffbd2e; }
+    .mac-dots .dot.green { background: #27c93f; }
+
+    .code-filename {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: #8b949e;
+      font-weight: 500;
+    }
+    .code-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .code-lang-badge {
+      background: #21262d;
+      color: #58a6ff;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(88, 166, 255, 0.25);
+    }
+    .copy-code-btn {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 3px 10px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+    .copy-code-btn:hover {
+      background: #30363d;
+      color: #fff;
+    }
+    .code-body {
+      display: flex;
+      padding: 16px 0;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.7;
+    }
+    .line-numbers {
+      padding: 0 14px 0 16px;
+      color: #484f58;
+      text-align: right;
+      user-select: none;
+      border-right: 1px solid #21262d;
+      font-family: var(--font-mono);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .code-body pre {
+      margin: 0;
+      padding: 0 18px;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      color: #e6edf3;
+      overflow-x: visible;
+      flex-grow: 1;
+    }
+    .code-body code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      font-family: inherit;
+      font-size: inherit;
+    }
+    /* 语法高亮 Token 配色 */
+    .tok-keyword { color: #ff7b72; font-weight: 600; }
+    .tok-builtin { color: #79c0ff; font-weight: 600; }
+    .tok-type { color: #ffa657; font-weight: 600; }
+    .tok-number { color: #79c0ff; }
+    .tok-string { color: #a5d6ff; }
+    .tok-comment { color: #8b949e; font-style: italic; }
+    .tok-asm { color: #d2a8ff; font-weight: bold; }
+    .tok-reg { color: #56d364; }
+
+    pre.code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 18px 20px;
+      border-radius: 10px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin: 20px 0 24px;
+      border: 1px solid #1e293b;
+      box-shadow: var(--shadow-sm);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--bg-tertiary);
+      color: var(--text-main);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    pre.code-block code { background: transparent; padding: 0; color: inherit; }
+
+    /* 图表容器 */
+    figure.article-figure {
+      margin: 28px 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: box-shadow 0.2s ease;
+    }
+    figure.article-figure:hover { box-shadow: var(--shadow-md); }
+
+    figure.article-figure .img-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f8fafc;
+      padding: 10px;
+      cursor: zoom-in;
+    }
+    [data-theme="dark"] figure.article-figure .img-container { background: #0f172a; }
+
+    figure.article-figure img {
+      max-width: 100%;
+      height: auto;
+      max-height: 540px;
+      object-fit: contain;
+      display: block;
+    }
+
+    figcaption {
+      padding: 10px 16px;
+      font-size: 13.5px;
+      color: var(--text-light);
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    figcaption .fig-icon { color: var(--accent); font-weight: bold; }
+
+    /* 数据对比表格 */
+    table.data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 24px 0;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 14.5px;
+    }
+    table.data-table th, table.data-table td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    table.data-table th {
+      background: var(--bg-secondary);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    table.data-table tr:last-child td { border-bottom: none; }
+    table.data-table tr:nth-child(even) td { background: rgba(0, 0, 0, 0.015); }
+    [data-theme="dark"] table.data-table tr:nth-child(even) td { background: rgba(255, 255, 255, 0.02); }
+
+    /* 批注高亮样式 */
+    mark.user-highlight {
+      background-color: var(--highlight-bg);
+      border-bottom: 2px solid var(--highlight-border);
+      color: inherit;
+      padding: 2px 2px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    mark.user-highlight:hover { filter: brightness(0.95); }
+
+    /* 划选浮动工具栏 */
+    #selection-popover {
+      position: absolute;
+      display: none;
+      background: #0f172a;
+      color: #fff;
+      border-radius: 8px;
+      padding: 5px 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 200;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      transform: translate(-50%, -100%);
+      margin-top: -8px;
+    }
+    #selection-popover button {
+      background: transparent;
+      border: none;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+    }
+    #selection-popover button:hover { background: rgba(255, 255, 255, 0.15); }
+
+    /* 批注与修改抽屉 */
+    #annotation-drawer {
+      position: fixed;
+      top: 0;
+      right: -420px;
+      width: 400px;
+      height: 100vh;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      z-index: 500;
+      transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+    #annotation-drawer.open { right: 0; }
+
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-secondary);
+    }
+    .drawer-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .drawer-close { background: transparent; border: none; font-size: 20px; color: var(--text-light); cursor: pointer; padding: 4px; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    .comment-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 14px;
+    }
+    .comment-card .card-quote {
+      border-left: 3px solid var(--accent);
+      padding-left: 8px;
+      color: var(--text-light);
+      margin-bottom: 8px;
+      font-style: italic;
+      font-size: 13px;
+    }
+    .comment-card .card-text { color: var(--text-main); font-weight: 500; white-space: pre-wrap; }
+    .comment-card .card-time { font-size: 11px; color: var(--text-light); margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .comment-card .delete-btn { color: #ef4444; background: transparent; border: none; font-size: 12px; cursor: pointer; }
+
+    .drawer-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* 弹窗与 Toast */
+    #comment-modal {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.4); display: none; justify-content: center; align-items: center; z-index: 600;
+      backdrop-filter: blur(2px);
+    }
+    .modal-content {
+      background: var(--bg-primary); width: 90%; max-width: 480px; border-radius: 12px; padding: 20px;
+      box-shadow: var(--shadow-lg); border: 1px solid var(--border-color);
+    }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .modal-quote {
+      background: var(--bg-secondary); padding: 10px 12px; border-radius: 6px; font-size: 13px;
+      color: var(--text-muted); margin-bottom: 14px; border-left: 3px solid var(--accent); max-height: 80px; overflow-y: auto;
+    }
+    .modal-textarea {
+      width: 100%; height: 100px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;
+      font-family: inherit; font-size: 14px; resize: vertical; background: var(--bg-secondary); color: var(--text-main); margin-bottom: 14px;
+    }
+    .modal-textarea:focus { outline: 2px solid var(--accent); background: var(--bg-primary); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+    #toast-msg {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: #0f172a; color: #fff; padding: 10px 20px; border-radius: 30px; font-size: 14px; font-weight: 500;
+      box-shadow: var(--shadow-lg); z-index: 1000; transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s;
+      opacity: 0; display: flex; align-items: center; gap: 8px;
+    }
+    #toast-msg.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    #img-lightbox {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.85); z-index: 1500; display: none; justify-content: center; align-items: center; cursor: zoom-out;
+    }
+    #img-lightbox img { max-width: 92vw; max-height: 92vh; object-fit: contain; border-radius: 6px; }
+
+    @media (max-width: 1024px) {
+      .toc-sidebar { display: none; }
+      .page-layout { padding: 24px 16px 80px; }
+      h1.article-title { font-size: 26px; }
+    }
+  </style>
+<style>body{padding-top:0!important}.page-layout,.page-wrapper{margin-top:32px!important}</style><link href="/vendor/katex/katex.min.css" rel="stylesheet"/></head>
+<body>
+<div id="reading-progress"></div>
+<!-- 顶部导航与控制栏 -->
+
+<div class="page-layout">
+<!-- 侧边栏目录 -->
+<nav class="toc-sidebar">
+<div class="toc-title">📑 目录导航</div>
+<ul class="toc-list">
+<li class="toc-item"><a class="toc-link" href="#intro">引言与性能总览</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-1">Kernel 1: 朴素实现与理论下界</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-2">Kernel 2: 全局内存合并访问</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-3">Kernel 3: 共享内存分块缓存</a></li>
+<li class="toc-item"><a class="toc-link" href="#occupancy-calc">深入：活跃度与 Roofline</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-4">Kernel 4: 一维分块 (1D Blocktiling)</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-5">Kernel 5: 二维分块与寄存器外积</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-6">Kernel 6: 向量化访存优化</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-9">Kernel 9: 参数自动调优 (Autotuning)</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-10">Kernel 10: 线程束级分块 (Warptiling)</a></li>
+<li class="toc-item"><a class="toc-link" href="#cublas-analysis">cuBLAS 领先奥秘与 Split-K</a></li>
+<li class="toc-item"><a class="toc-link" href="#kernel-11">后续规划与总结参考</a></li>
+</ul>
+</nav>
+<!-- 正文主区 -->
+<main class="article-main">
+<header class="article-header">
+<div class="article-meta">
+<span class="author-pill">
+<span>Simon Boehm</span>
+</span>
+<span>•</span>
+<span>发表于 2022 年 12 月</span>
+<span>•</span>
+<span>测试平台：NVIDIA RTX A6000 (Ampere)</span>
+<span>•</span>
+<span>ASD-STE100 规范技术润色</span>
+</div>
+<h1 class="article-title">从零开始优化 CUDA 矩阵乘法 Kernel 达到接近 cuBLAS 性能：实战工作日志</h1>
+<p class="article-lead">
+          在本文中，我将使用 CUDA 从零起步，以渐进式迭代的方式优化单精度通用矩阵乘法（SGEMM）实现。本文的目标并非替代 cuBLAS，而是通过第一性原理，深入探究现代深度学习 GPU 最底层的关键性能特征——涵盖全局内存合并访存、共享内存缓存、寄存器外积、活跃度分析、指令流水线停顿与线程束级分块等全套硬核技术。
+        </p>
+<figure class="hero-figure">
+<img alt="CUDA Matmul Optimization Banner" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/0c854f453d50a29f.png"/>
+</figure>
+</header>
+<article class="content-area" id="article-content">
+<!-- 引言与总表 -->
+<section class="section-block" id="intro">
+<p>在当前的人工智能时代，GPU 上的矩阵乘法（GEMM）可以说是世界上最重要的数值算法之一，它承载了大语言模型与深度学习在训练与推理阶段绝大部分的算力消耗（FLOPs）。</p>
+<p>那么，从零手写一个高性能的 CUDA SGEMM（执行 $C = \alpha A B + \beta C$，单精度 32 位浮点）到底需要做多少工作？</p>
+<p>我们将从一个最简易朴素的 Naive Kernel 起步，循序渐进地施加针对性的软硬件级优化，直到性能逐步逼近 cuBLAS（NVIDIA 官方权威矩阵库）的 <strong>95% 性能极限</strong>：</p>
+<table class="data-table">
+<thead>
+<tr>
+<th>Kernel 版本</th>
+<th>核心优化策略</th>
+<th style="text-align:right;">计算性能 (GFLOPs/s)</th>
+<th style="text-align:right;">相对 cuBLAS 比例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1: Naive</strong></td>
+<td>朴素实现（单线程负责单输出）</td>
+<td style="text-align:right;"><code>309.0</code></td>
+<td style="text-align:right;"><code>1.3%</code></td>
+</tr>
+<tr>
+<td><strong>2: GMEM Coalescing</strong></td>
+<td>全局内存合并访问</td>
+<td style="text-align:right;"><code>1,986.5</code></td>
+<td style="text-align:right;"><code>8.5%</code></td>
+</tr>
+<tr>
+<td><strong>3: SMEM Caching</strong></td>
+<td>共享内存分块缓存（Cache Blocking）</td>
+<td style="text-align:right;"><code>2,980.3</code></td>
+<td style="text-align:right;"><code>12.8%</code></td>
+</tr>
+<tr>
+<td><strong>4: 1D Blocktiling</strong></td>
+<td>一维分块（单线程计算一列结果）</td>
+<td style="text-align:right;"><code>8,474.7</code></td>
+<td style="text-align:right;"><code>36.5%</code></td>
+</tr>
+<tr>
+<td><strong>5: 2D Blocktiling</strong></td>
+<td>二维分块（寄存器外积，大幅提升算术强度）</td>
+<td style="text-align:right;"><code>15,971.7</code></td>
+<td style="text-align:right;"><code>68.7%</code></td>
+</tr>
+<tr>
+<td><strong>6: Vectorized Access</strong></td>
+<td>向量化访存（float4 128 位宽存取与 As 转置）</td>
+<td style="text-align:right;"><code>18,237.3</code></td>
+<td style="text-align:right;"><code>78.4%</code></td>
+</tr>
+<tr>
+<td><strong>9: Autotuning</strong></td>
+<td>超参数自动化调优</td>
+<td style="text-align:right;"><code>19,721.0</code></td>
+<td style="text-align:right;"><code>84.8%</code></td>
+</tr>
+<tr>
+<td><strong>10: Warptiling</strong></td>
+<td>线程束级分块（规避 Bank 冲突与寄存器缓存局部性）</td>
+<td style="text-align:right;"><code>21,779.3</code></td>
+<td style="text-align:right;"><strong>93.7%</strong></td>
+</tr>
+<tr style="background:var(--accent-bg); font-weight:bold;">
+<td><strong>0: cuBLAS</strong></td>
+<td>NVIDIA 官方极致调优基准 (FP32)</td>
+<td style="text-align:right;"><code>23,249.6</code></td>
+<td style="text-align:right;"><code>100.0%</code></td>
+</tr>
+</tbody>
+</table>
+<div class="callout-box info">
+<strong>注：</strong>上述基准为标准 FP32 纯浮点运算。在实际场景中，若开启 TF32 或 BF16 精度，cuBLAS 将直接启用 Tensor Core（张量核心），算力将进一步提升 2.5 至 3.5 倍。
+          </div>
+</section>
+<!-- Kernel 1 -->
+<section class="section-block" id="kernel-1">
+<h2 class="section-heading"><span class="heading-num">01.</span> Kernel 1: 朴素实现（Naive Implementation）</h2>
+<p>在 CUDA 编程模型中，计算组织为一个三级金字塔结构：</p>
+<ul>
+<li>每次启动一个 CUDA Kernel，都会创建一个新的 <strong>网格（Grid）</strong>；</li>
+<li>每个 Grid 由多个 <strong>线程块（Block）</strong> 组成；</li>
+<li>每个 Block 包含最多 1,024 个独立的 <strong>线程（Thread）</strong>。同一 Block 内的线程可以访问同一块片上共享内存（SMEM）。</li>
+</ul>
+<p>每个 Block 内的线程组织可通过 <code>blockDim</code> 向量（包含 x, y, z 三个维度）进行配置，如下图所示：</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="CUDA Thread Hierarchy" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/de9188d582302ecd.png"/>
+</div>
+<figcaption><span class="fig-icon">图 1</span> CUDA 线程层次结构：Grid、Block 与 Thread 的多维组织形式</figcaption>
+</figure>
+<p>在首个朴素实现中，我们建立最简单的一对一映射：<strong>每个线程负责计算结果矩阵 C 中的唯一一个元素</strong>。该线程提取矩阵 A 的对应行与矩阵 B 的对应列，执行点积累加，最后写入 C。由于每个 C 元素仅由一个线程独占写入，无需任何线程间同步操作。</p>
+<p>启动配置如下：</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel1_launch.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 1. 确定网格 (Grid) 尺寸：
+// CEIL_DIV(x, y) = (x + y - 1) / y，向上取整确保覆盖整块矩阵
+// 矩阵 C 大小为 M x N，每个 Block 覆盖 32x32 个元素，因此沿 M 轴分配 CEIL_DIV(M, 32) 个 Block，沿 N 轴分配 CEIL_DIV(N, 32) 个 Block
+dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32), 1);
+
+// 2. 确定线程块 (Block) 尺寸：
+// 32 * 32 = 1024 个线程，正好达到硬件单 Block 允许的最大线程数 (1024)
+dim3 blockDim(32, 32, 1);
+
+// 3. 异步启动 GPU 上的 Kernel：
+// 该函数在 Host (CPU) 端调用后会立刻返回，GPU 驱动负责将计算任务分发到各个流式多处理器 (SM)
+sgemm_naive&lt;&lt;&lt;gridDim, blockDim&gt;&gt;&gt;(M, N, K, alpha, A, B, beta, C);" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
+<pre><code><span class="tok-comment">// 1. 确定网格 (Grid) 尺寸：</span>
+<span class="tok-comment">// CEIL_DIV(x, y) = (x + y - 1) / y，向上取整确保覆盖整块矩阵</span>
+<span class="tok-comment">// 矩阵 C 大小为 M x N，每个 Block 覆盖 32x32 个元素，因此沿 M 轴分配 CEIL_DIV(M, 32) 个 Block，沿 N 轴分配 CEIL_DIV(N, 32) 个 Block</span>
+<span class="tok-type">dim3</span> <span class="tok-builtin">gridDim</span>(CEIL_DIV(M, <span class="tok-number">32</span>), CEIL_DIV(N, <span class="tok-number">32</span>), <span class="tok-number">1</span>);
+
+<span class="tok-comment">// 2. 确定线程块 (Block) 尺寸：</span>
+<span class="tok-comment">// 32 * 32 = 1024 个线程，正好达到硬件单 Block 允许的最大线程数 (1024)</span>
+<span class="tok-type">dim3</span> <span class="tok-builtin">blockDim</span>(<span class="tok-number">32</span>, <span class="tok-number">32</span>, <span class="tok-number">1</span>);
+
+<span class="tok-comment">// 3. 异步启动 GPU 上的 Kernel：</span>
+<span class="tok-comment">// 该函数在 Host (CPU) 端调用后会立刻返回，GPU 驱动负责将计算任务分发到各个流式多处理器 (SM)</span>
+sgemm_naive&lt;&lt;&lt;<span class="tok-builtin">gridDim</span>, <span class="tok-builtin">blockDim</span>&gt;&gt;&gt;(M, N, K, alpha, A, B, beta, C);</code></pre>
+</div>
+</div>
+<p>Kernel 核心实现代码：</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel1_naive.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="__global__ void sgemm_naive(int M, int N, int K, float alpha, const float *A,
+                            const float *B, float beta, float *C) {
+  // 1. 全局坐标计算：每个线程从内置变量中读取所属 Block 索引与线程内部索引
+  // x 为当前线程负责的矩阵 C 的绝对行坐标 (0 ~ M-1)
+  const uint x = blockIdx.x * blockDim.x + threadIdx.x;
+  // y 为当前线程负责的矩阵 C 的绝对列坐标 (0 ~ N-1)
+  const uint y = blockIdx.y * blockDim.y + threadIdx.y;
+
+  // 2. 边界检查：若矩阵尺寸 M 或 N 不是 32 的整数倍，防止边缘线程越界访问非法显存
+  if (x &lt; M &amp;&amp; y &lt; N) {
+    float tmp = 0.0f; // 私有标量寄存器，用于在局部累加点积中间结果
+
+    // 3. 沿公共维度 K 执行向量点积：
+    // 当前线程依次加载矩阵 A 的第 x 行元素，以及矩阵 B 的第 y 列元素
+    for (int i = 0; i &lt; K; ++i) {
+      // A[x * K + i]：A 矩阵采用行主序连续存储，行偏移为 x*K，列偏移为 i
+      // B[i * N + y]：B 矩阵同样为行主序，访问同一列不同行时产生高达 N 个浮点数的大跨步 (Stride)！
+      tmp += A[x * K + i] * B[i * N + y];
+    }
+
+    // 4. 写回全局显存：完成公式 C = alpha * (A @ B) + beta * C 的更新
+    C[x * N + y] = alpha * tmp + beta * C[x * N + y];
+  }
+}" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span></div>
+<pre><code><span class="tok-builtin">__global__</span> <span class="tok-type">void</span> sgemm_naive(<span class="tok-type">int</span> M, <span class="tok-type">int</span> N, <span class="tok-type">int</span> K, <span class="tok-type">float</span> alpha, <span class="tok-type">const</span> <span class="tok-type">float</span> *A,
+                            <span class="tok-type">const</span> <span class="tok-type">float</span> *B, <span class="tok-type">float</span> beta, <span class="tok-type">float</span> *C) {
+  <span class="tok-comment">// 1. 全局坐标计算：每个线程从内置变量中读取所属 Block 索引与线程内部索引</span>
+  <span class="tok-comment">// x 为当前线程负责的矩阵 C 的绝对行坐标 (0 ~ M-1)</span>
+  <span class="tok-type">const</span> <span class="tok-type">uint</span> x = <span class="tok-builtin">blockIdx</span>.x * <span class="tok-builtin">blockDim</span>.x + <span class="tok-builtin">threadIdx</span>.x;
+  <span class="tok-comment">// y 为当前线程负责的矩阵 C 的绝对列坐标 (0 ~ N-1)</span>
+  <span class="tok-type">const</span> <span class="tok-type">uint</span> y = <span class="tok-builtin">blockIdx</span>.y * <span class="tok-builtin">blockDim</span>.y + <span class="tok-builtin">threadIdx</span>.y;
+
+  <span class="tok-comment">// 2. 边界检查：若矩阵尺寸 M 或 N 不是 32 的整数倍，防止边缘线程越界访问非法显存</span>
+  <span class="tok-keyword">if</span> (x &lt; M &amp;&amp; y &lt; N) {
+    <span class="tok-type">float</span> tmp = <span class="tok-number">0.0f</span>; <span class="tok-comment">// 私有标量寄存器，用于在局部累加点积中间结果</span>
+
+    <span class="tok-comment">// 3. 沿公共维度 K 执行向量点积：</span>
+    <span class="tok-comment">// 当前线程依次加载矩阵 A 的第 x 行元素，以及矩阵 B 的第 y 列元素</span>
+    <span class="tok-keyword">for</span> (<span class="tok-type">int</span> i = <span class="tok-number">0</span>; i &lt; K; ++i) {
+      <span class="tok-comment">// A[x * K + i]：A 矩阵采用行主序连续存储，行偏移为 x*K，列偏移为 i</span>
+      <span class="tok-comment">// B[i * N + y]：B 矩阵同样为行主序，访问同一列不同行时产生高达 N 个浮点数的大跨步 (Stride)！</span>
+      tmp += A[x * K + i] * B[i * N + y];
+    }
+
+    <span class="tok-comment">// 4. 写回全局显存：完成公式 C = alpha * (A @ B) + beta * C 的更新</span>
+    C[x * N + y] = alpha * tmp + beta * C[x * N + y];
+  }
+}</code></pre>
+</div>
+</div>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Naive Kernel Mapping" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/ad64a36315c3dd92.png"/>
+</div>
+<figcaption><span class="fig-icon">图 2</span> 朴素 Kernel 映射：每个线程通过独立的行列点积计算 C 的单个元素</figcaption>
+</figure>
+<div class="callout-box warning">
+<strong>分块量化误差（Tile Quantization）：</strong><br/>
+            若矩阵尺寸不能被 Block 尺寸整除，必须启动额外的边缘 Block 来处理余数。此时边缘 Block 无法跑满全部 1,024 个线程，产生硬件利用率浪费。
+            <div style="margin-top:8px;">
+<img decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/9b57f0c5f4992d59.png" style="max-width:100%; border-radius:6px;"/>
+</div>
+</div>
+<h3 class="sub-heading">第一性原理：理论性能与最快运行时间下界估算</h3>
+<p>在 A6000 GPU 上计算两个 $4092 \times 4092$ 的单精度浮点矩阵相乘，单次 Naive Kernel 运行约耗时 <strong>0.5 秒</strong>。我们先通过“草稿纸演算”推算硬件的物理极限：</p>
+<ol>
+<li><strong>总浮点计算量 (FLOPs)</strong>：每个 C 元素需要 4092 次乘加（FMA 算作 2 次浮点），总计算量为：
+              <br/><code>2 * 4092³ + 4092² = 137.4 GFLOPs</code>
+</li>
+<li><strong>最小理论读取数据量</strong>：矩阵 A、B、C 至少各完整读一次：
+              <br/><code>3 * 4092² * 4 Bytes = 201 MB</code>
+</li>
+<li><strong>最小理论写出数据量</strong>：矩阵 C 写出：
+              <br/><code>4092² * 4 Bytes = 67 MB</code>
+</li>
+</ol>
+<p>因此，<strong>268 MB</strong> 是任何算法在理论具备无限缓存下，与显存（Global Memory）交互的数据吞吐下限。</p>
+<p>硬件标称参数：RTX A6000 具备 <strong>30 TFLOPs/s</strong> 的标称 FP32 算力峰值（Boost 频率下最高 38.7 TFLOPs）以及 <strong>768 GB/s</strong> 的显存带宽：</p>
+<ul>
+<li>按峰值算力计算，纯数学计算仅需：<code>137 GFLOPs / 30 TFLOPs = 4.5 ms</code>；</li>
+<li>按峰值带宽计算，数据搬运仅需：<code>268 MB / 768 GB/s = 0.34 ms</code>。</li>
+</ul>
+<div class="callout-box tip">
+<strong>核心洞见：</strong>纯数学运算时间约是理论访存时间的 <strong>13 倍</strong>。这意味着只要我们的数据复用率达到 10 倍以上，<strong>最终的高度优化 Kernel 必然是计算受限（Compute-bound）任务</strong>，绝不应受制于显存瓶颈！
+          </div>
+<h3 class="sub-heading">朴素 Kernel 的灾难性内存访问模式</h3>
+<p>为什么 Naive 实现仅有 309 GFLOPs（只有标称性能的 1%）？</p>
+<p>同一 Block 内的两个相邻线程 (0, 0) 和 (0, 1) 会读取相同的 B 列，但各自读取完全不同的 A 行。在无缓存复用的极端情况下，每个线程都要从显存中读取 <code>2 * 4092 + 1</code> 个浮点数。由于总共有 $4092^2$ 个线程，这引发了高达 <strong>548 GB</strong> 的恐怖显存访问洪流！</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Naive Kernel Memory Access" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/26b1f6d3d6f388ef.png"/>
+</div>
+<figcaption><span class="fig-icon">图 3</span> Naive Kernel 内存访问模式：线程 A（红）与线程 B（绿）独立重复加载数据，缺乏复用</figcaption>
+</figure>
+</section>
+<!-- Kernel 2 -->
+<section class="section-block" id="kernel-2">
+<h2 class="section-heading"><span class="heading-num">02.</span> Kernel 2: 全局内存合并访问（Global Memory Coalescing）</h2>
+<p>要理解合并访存，必须先理解 GPU 的执行核心单位——<strong>线程束（Warp）</strong>。在硬件底层，Block 内的线程按连续的 <code>threadId</code> 划分为每组 32 个线程的 Warp。SM 中的 Warp 调度器以 Warp 为原子单位发射指令。</p>
+<p>多维 <code>blockDim</code> 下连续 <code>threadId</code> 计算公式如下：</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">thread_indexing.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 多维 Block 中，将 (x, y, z) 坐标线性化映射为一维硬件 threadId：
+// 第一维 threadIdx.x 沿 Warp 内部连续增长，用于对齐 32 线程的物理 Warp 调度
+threadId = threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span></div>
+<pre><code><span class="tok-comment">// 多维 Block 中，将 (x, y, z) 坐标线性化映射为一维硬件 threadId：</span>
+<span class="tok-comment">// 第一维 threadIdx.x 沿 Warp 内部连续增长，用于对齐 32 线程的物理 Warp 调度</span>
+threadId = <span class="tok-builtin">threadIdx</span>.x + <span class="tok-builtin">blockDim</span>.x * (<span class="tok-builtin">threadIdx</span>.y + <span class="tok-builtin">blockDim</span>.y * <span class="tok-builtin">threadIdx</span>.z);</code></pre>
+</div>
+</div>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="ThreadId to Warp Mapping" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/191d4d0ea1b160e8.png"/>
+</div>
+<figcaption><span class="fig-icon">图 4</span> 连续的 threadId 被聚合成 Warp（示意图以 8 线程展示，实际硬件为固定 32 线程）</figcaption>
+</figure>
+<p><strong>全局内存合并（Coalescing）</strong>：当同一个 Warp 内的 32 个线程同时发起全局内存访问时，如果它们请求的内存地址在空间上是<strong>连续且对齐的</strong>，硬件访存单元会自动将这 32 次离散的 4 字节读取聚合为一次或极少数几次 32B / 64B / 128B 的单次总线事务（Bus Transaction）执行！</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="GMEM Coalescing" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/43eafba470c39c90.png"/>
+</div>
+<figcaption><span class="fig-icon">图 5</span> 全局内存合并访问：8 个连续内存请求被聚合成 2 次 32 字节硬件加载事务</figcaption>
+</figure>
+<div class="callout-box info">
+<strong>冷知识：</strong>Warp 内部的线程访问顺序不要求严格顺序对应，即便内部乱序访问，只要该 Warp 访问的地址总范围在同一个对齐窗口内，硬件依然可以完成合并加载。
+            <div style="margin-top:8px;">
+<img decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/9b37600abbd2c9fd.png" style="max-width:100%; border-radius:6px;"/>
+</div>
+</div>
+<p>在 Naive Kernel 中：</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">naive_indexing_flaw.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// Naive Kernel 中的灾难性坐标绑定：
+// threadIdx.x 递增导致 x 递增，即 Warp 内相邻线程分别去读 A 的不同行（跨步达 K 个 float）！
+const uint x = blockIdx.x * blockDim.x + threadIdx.x; // x 对应 A 的行号（跨行大步长，无法合并！）
+const uint y = blockIdx.y * blockDim.y + threadIdx.y; // y 对应 B 的列号" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+<pre><code><span class="tok-comment">// Naive Kernel 中的灾难性坐标绑定：</span>
+<span class="tok-comment">// threadIdx.x 递增导致 x 递增，即 Warp 内相邻线程分别去读 A 的不同行（跨步达 K 个 float）！</span>
+<span class="tok-type">const</span> <span class="tok-type">uint</span> x = <span class="tok-builtin">blockIdx</span>.x * <span class="tok-builtin">blockDim</span>.x + <span class="tok-builtin">threadIdx</span>.x; <span class="tok-comment">// x 对应 A 的行号（跨行大步长，无法合并！）</span>
+<span class="tok-type">const</span> <span class="tok-type">uint</span> y = <span class="tok-builtin">blockIdx</span>.y * <span class="tok-builtin">blockDim</span>.y + <span class="tok-builtin">threadIdx</span>.y; <span class="tok-comment">// y 对应 B 的列号</span></code></pre>
+</div>
+</div>
+<p>同一个 Warp 内拥有连续 <code>threadIdx.x</code> 的线程，其 <code>x</code> 坐标递增，导致它们访问的是矩阵 A 不同的行（行与行之间相隔 K 个元素，物理地址跨度极大）！这直接打碎了合并访问，显存吞吐被严重劣化至仅剩可怜的 15 GB/s。</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Naive Kernel Uncoalesced" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/125208e5f8cc539e.png"/>
+</div>
+<figcaption><span class="fig-icon">图 6</span> 原 Naive Kernel 的非连续加载模式：Warp 线程跨步跳跃在显存的不同行</figcaption>
+</figure>
+<p><strong>优化手段：</strong>调整索引映射方式，让同一个 Warp 内的线程在内层连续访问行主序存储的相邻内存单元：</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Improved Coalesced Access" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/a01340e520577c58.png"/>
+</div>
+<figcaption><span class="fig-icon">图 7</span> 调整坐标分配：确保 Warp 内部线程沿着内存中物理连续的方向遍历</figcaption>
+</figure>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel2_coalescing.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 核心优化：彻底重构线程坐标与矩阵行列的映射关系！
+// 原先将 threadIdx.x 绑定到 A 的行，导致相邻线程访问不同行（跨步为 K），打碎了内存合并。
+// 现在将 Block 展平为一维（1024 线程），再通过除法和取模重构为 32x32 的二维空间：
+const int x = blockIdx.x * BLOCKSIZE + (threadIdx.x / BLOCKSIZE); // 行号：连续 32 个线程的 x 相同，共享同一行！
+const int y = blockIdx.y * BLOCKSIZE + (threadIdx.x % BLOCKSIZE); // 列号：连续 32 个线程的 y 坐标严格连续递增！
+
+if (x &lt; M &amp;&amp; y &lt; N) {
+  float tmp = 0.0f;
+  for (int i = 0; i &lt; K; ++i) {
+    // 关键效果：
+    // 读取 B[i * N + y] 时，同一个 Warp（32 个线程）的 y 坐标是连续的！
+    // 32 个线程在同一时钟周期发起的 4 字节读取被硬件合并为单次 128 字节的总线事务！
+    tmp += A[x * K + i] * B[i * N + y];
+  }
+  // 写回 C 时，相邻线程也是写向同一行中连续的列，完全满足合并写入条件
+  C[x * N + y] = alpha * tmp + beta * C[x * N + y];
+}" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span></div>
+<pre><code><span class="tok-comment">// 核心优化：彻底重构线程坐标与矩阵行列的映射关系！</span>
+<span class="tok-comment">// 原先将 threadIdx.x 绑定到 A 的行，导致相邻线程访问不同行（跨步为 K），打碎了内存合并。</span>
+<span class="tok-comment">// 现在将 Block 展平为一维（1024 线程），再通过除法和取模重构为 32x32 的二维空间：</span>
+<span class="tok-type">const</span> <span class="tok-type">int</span> x = <span class="tok-builtin">blockIdx</span>.x * BLOCKSIZE + (<span class="tok-builtin">threadIdx</span>.x / BLOCKSIZE); <span class="tok-comment">// 行号：连续 32 个线程的 x 相同，共享同一行！</span>
+<span class="tok-type">const</span> <span class="tok-type">int</span> y = <span class="tok-builtin">blockIdx</span>.y * BLOCKSIZE + (<span class="tok-builtin">threadIdx</span>.x % BLOCKSIZE); <span class="tok-comment">// 列号：连续 32 个线程的 y 坐标严格连续递增！</span>
+
+<span class="tok-keyword">if</span> (x &lt; M &amp;&amp; y &lt; N) {
+  <span class="tok-type">float</span> tmp = <span class="tok-number">0.0f</span>;
+  <span class="tok-keyword">for</span> (<span class="tok-type">int</span> i = <span class="tok-number">0</span>; i &lt; K; ++i) {
+    <span class="tok-comment">// 关键效果：</span>
+    <span class="tok-comment">// 读取 B[i * N + y] 时，同一个 Warp（32 个线程）的 y 坐标是连续的！</span>
+    <span class="tok-comment">// 32 个线程在同一时钟周期发起的 4 字节读取被硬件合并为单次 128 字节的总线事务！</span>
+    tmp += A[x * K + i] * B[i * N + y];
+  }
+  <span class="tok-comment">// 写回 C 时，相邻线程也是写向同一行中连续的列，完全满足合并写入条件</span>
+  C[x * N + y] = alpha * tmp + beta * C[x * N + y];
+}</code></pre>
+</div>
+</div>
+<p><strong>优化效果：</strong>显存总线吞吐从 15 GB/s 骤增至 <strong>110 GB/s</strong>，算力从 300 GFLOPs 跃升至 <strong>1,986.5 GFLOPs（提升超 6.5 倍）</strong>！</p>
+</section>
+<!-- Kernel 3 -->
+<section class="section-block" id="kernel-3">
+<h2 class="section-heading"><span class="heading-num">03.</span> Kernel 3: 共享内存分块缓存（Shared Memory Cache-Blocking）</h2>
+<p>虽然 Kernel 2 实现了合并访存，但它依然一遍又一遍地从远端显存中重复加载相同的元素。为了解决复用问题，必须使用 GPU 芯片内部极速的 <strong>共享内存（Shared Memory, SMEM）</strong>。</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="GPU Memory Hierarchy" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/86f2d45966b616c0.png"/>
+</div>
+<figcaption><span class="fig-icon">图 8</span> 现代 GPU 内存层级结构：全局显存（~750 GB/s）与片上共享内存（~12,000 GB/s）存在数量级差距</figcaption>
+</figure>
+<p><strong>算法逻辑：</strong>每个 Block 在共享内存中开辟大小为 <code>BLOCKSIZE * BLOCKSIZE</code> 的缓冲区 <code>As</code> 和 <code>Bs</code>。所有线程协同将矩阵 A 的一个方块与矩阵 B 的一个方块搬入 SMEM，执行同步屏障 <code>__syncthreads()</code>，然后基于这部分高速缓存计算部分和；随后沿 K 维度滑动方块，直至累加完成。</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Cache Blocking" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/b906f5715b790d1f.png"/>
+</div>
+<figcaption><span class="fig-icon">图 9</span> 共享内存分块策略：分批协作搬运局部子块并沿 K 轴滑动</figcaption>
+</figure>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel3_smem_blocking.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 1. 基址指针前移：将指针快速定位到当前 Block 所负责的局部起始地址
+A += cRow * BLOCKSIZE * K;                    // A 的起始行：cRow * 32，跳过前面所有整行
+B += cCol * BLOCKSIZE;                        // B 的起始列：cCol * 32
+C += cRow * BLOCKSIZE * N + cCol * BLOCKSIZE; // C 当前 Block 负责的 32x32 左上角基地址
+
+float tmp = 0.0f; // 累加中间结果的寄存器
+
+// 2. 外层滑动循环：沿公共维度 K 按 BLOCKSIZE（32）步长推进切片
+for (int bkIdx = 0; bkIdx &lt; K; bkIdx += BLOCKSIZE) {
+  // 3. 协作搬运：每个线程从高延迟的全局显存加载 1 个 A 元素和 1 个 B 元素写入片上共享内存
+  // threadCol（即 threadIdx.x % 32）作为内层连续索引，严格保证全局显存的合并读取！
+  As[threadRow * BLOCKSIZE + threadCol] = A[threadRow * K + threadCol];
+  Bs[threadRow * BLOCKSIZE + threadCol] = B[threadRow * N + threadCol];
+
+  // 4. 同步屏障 ①：阻塞当前 Block 内的所有 1024 个线程，
+  // 必须确保当前分块的全部 32x32 缓存数据均已安全落入共享内存后，才能开启后续计算！
+  __syncthreads();
+
+  // 5. 提前前移全局内存指针，为下一个分块的加载做准备
+  A += BLOCKSIZE;     // A 向右移动 32 列
+  B += BLOCKSIZE * N; // B 向下移动 32 行
+
+  // 6. 纯片上计算：利用共享内存（SMEM）中的当前分块数据计算局部的向量点积
+  // 共享内存带宽高达 12 TB/s，比全局显存高出一个数量级，大幅消除访存停顿
+  for (int dotIdx = 0; dotIdx &lt; BLOCKSIZE; ++dotIdx) {
+    tmp += As[threadRow * BLOCKSIZE + dotIdx] *
+           Bs[dotIdx * BLOCKSIZE + threadCol];
+  }
+
+  // 7. 同步屏障 ②：必须再次同步！
+  // 防止跑得快的线程在下一轮循环中过早向 As/Bs 写入新数据，从而覆写了慢线程尚未读取完的旧数据（消除 WAR 读后写风险）
+  __syncthreads();
+}
+
+// 8. 最终写回全局内存：完成缩放与旧矩阵 C 的累加更新
+C[threadRow * N + threadCol] = alpha * tmp + beta * C[threadRow * N + threadCol];" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span><span>29</span><span>30</span><span>31</span><span>32</span><span>33</span><span>34</span><span>35</span><span>36</span></div>
+<pre><code><span class="tok-comment">// 1. 基址指针前移：将指针快速定位到当前 Block 所负责的局部起始地址</span>
+A += cRow * BLOCKSIZE * K;                    <span class="tok-comment">// A 的起始行：cRow * 32，跳过前面所有整行</span>
+B += cCol * BLOCKSIZE;                        <span class="tok-comment">// B 的起始列：cCol * 32</span>
+C += cRow * BLOCKSIZE * N + cCol * BLOCKSIZE; <span class="tok-comment">// C 当前 Block 负责的 32x32 左上角基地址</span>
+
+<span class="tok-type">float</span> tmp = <span class="tok-number">0.0f</span>; <span class="tok-comment">// 累加中间结果的寄存器</span>
+
+<span class="tok-comment">// 2. 外层滑动循环：沿公共维度 K 按 BLOCKSIZE（32）步长推进切片</span>
+<span class="tok-keyword">for</span> (<span class="tok-type">int</span> bkIdx = <span class="tok-number">0</span>; bkIdx &lt; K; bkIdx += BLOCKSIZE) {
+  <span class="tok-comment">// 3. 协作搬运：每个线程从高延迟的全局显存加载 1 个 A 元素和 1 个 B 元素写入片上共享内存</span>
+  <span class="tok-comment">// threadCol（即 threadIdx.x % 32）作为内层连续索引，严格保证全局显存的合并读取！</span>
+  As[threadRow * BLOCKSIZE + threadCol] = A[threadRow * K + threadCol];
+  Bs[threadRow * BLOCKSIZE + threadCol] = B[threadRow * N + threadCol];
+
+  <span class="tok-comment">// 4. 同步屏障 ①：阻塞当前 Block 内的所有 1024 个线程，</span>
+  <span class="tok-comment">// 必须确保当前分块的全部 32x32 缓存数据均已安全落入共享内存后，才能开启后续计算！</span>
+  <span class="tok-builtin">__syncthreads</span>();
+
+  <span class="tok-comment">// 5. 提前前移全局内存指针，为下一个分块的加载做准备</span>
+  A += BLOCKSIZE;     <span class="tok-comment">// A 向右移动 32 列</span>
+  B += BLOCKSIZE * N; <span class="tok-comment">// B 向下移动 32 行</span>
+
+  <span class="tok-comment">// 6. 纯片上计算：利用共享内存（SMEM）中的当前分块数据计算局部的向量点积</span>
+  <span class="tok-comment">// 共享内存带宽高达 12 TB/s，比全局显存高出一个数量级，大幅消除访存停顿</span>
+  <span class="tok-keyword">for</span> (<span class="tok-type">int</span> dotIdx = <span class="tok-number">0</span>; dotIdx &lt; BLOCKSIZE; ++dotIdx) {
+    tmp += As[threadRow * BLOCKSIZE + dotIdx] *
+           Bs[dotIdx * BLOCKSIZE + threadCol];
+  }
+
+  <span class="tok-comment">// 7. 同步屏障 ②：必须再次同步！</span>
+  <span class="tok-comment">// 防止跑得快的线程在下一轮循环中过早向 As/Bs 写入新数据，从而覆写了慢线程尚未读取完的旧数据（消除 WAR 读后写风险）</span>
+  <span class="tok-builtin">__syncthreads</span>();
+}
+
+<span class="tok-comment">// 8. 最终写回全局内存：完成缩放与旧矩阵 C 的累加更新</span>
+C[threadRow * N + threadCol] = alpha * tmp + beta * C[threadRow * N + threadCol];</code></pre>
+</div>
+</div>
+<p><strong>优化效果：</strong>性能提升至 <strong>2,980 GFLOPs（接近 3 TFLOPs）</strong>。但距离 30 TFLOPs 的硬件极限依然十分遥远。</p>
+</section>
+<!-- 深入分析 -->
+<section class="section-block" id="occupancy-calc">
+<h2 class="section-heading"><span class="heading-num">04.</span> 深度瓶颈诊断：活跃度（Occupancy）与 Roofline 剖析</h2>
+<p>我们绘制 Kernel 3 的 Roofline 性能分析图：</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Roofline Analysis of Kernel 3" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/9560b1273050a968.png"/>
+</div>
+<figcaption><span class="fig-icon">图 10</span> Kernel 3 的 Roofline 模型分析：我们达到的显存带宽甚至高于 cuBLAS，但算术强度过低导致实际算力低下</figcaption>
+</figure>
+<p><strong>核心痛点：算术强度（Arithmetic Intensity）严重不足！</strong> 每次从内存搬运数据后，执行的浮点计算次数太少。接下来探究究竟是硬件哪里卡住了？</p>
+<h3 class="sub-heading">硬件活跃度（Occupancy）计算</h3>
+<p>活跃度定义为：每个 SM 上活跃运行的 Warp 数与硬件支持的最大 Warp 数的比值。以 RTX A6000 硬件参数计算：</p>
+<ul>
+<li><strong>SMEM 容量上限</strong>：每个 Block 消耗 8KB，加上 1KB 运行时开销共 9KB。每个 SM 拥有 100KB SMEM，可容纳 11 个 Block；</li>
+<li><strong>线程数上限</strong>：每个 Block 含 1,024 线程，而每个 SM 上限仅允许 1,536 线程。因此**线程数硬性限制了每个 SM 只能加载 1 个 Block**；</li>
+<li><strong>寄存器上限</strong>：单线程用 37 个寄存器，单 Block 消耗 40,960 个寄存器，SM 上限 65,536。同样只能驻留 1 个 Block。</li>
+</ul>
+<p>最终得出 Kernel 3 的实际活跃度：<code>32 活跃 Warp / 48 最大 Warp = 66%</code>。66% 的活跃度已经足够掩盖指令发射延迟（参见 Volkov 论文的尖点效应 Cusp Behavior），活跃度并非根本元凶。</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Volkov Cusp Behaviour" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/4a450b4213809321.png"/>
+</div>
+<figcaption><span class="fig-icon">图 11</span> Volkov 经典论文中的尖点效应：在高算术强度下，并不需要 100% 活跃度即可打满性能</figcaption>
+</figure>
+<p>通过 NVIDIA Nsight Compute (NCU) 分析指令混合与停顿原因：</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel3_inner_loop.ptx</span>
+<div class="code-header-right">
+<span class="code-lang-badge">PTX Assembly</span>
+<button class="copy-code-btn" data-code='// Kernel 3 内层循环编译出的核心 PTX 指令序列：
+ld.shared.f32   %f91, [%r8+3456];        // 指令 1：从共享内存加载 1 个 float (As 元素) 到寄存器 %f91
+ld.shared.f32   %f92, [%r7+108];         // 指令 2：从共享内存加载 1 个 float (Bs 元素) 到寄存器 %f92
+fma.rn.f32      %f93, %f92, %f91, %f90;  // 指令 3：乘加融合指令，计算 %f93 = %f92 * %f91 + %f90
+
+// 严重瓶颈剖析：
+// 每次计算只执行 1 次算术乘加 FMA，却需要执行 2 次共享内存加载 LDS！
+// 访存指令频率远高于算术指令，导致硬件 MIO (Memory Input/Output) 指令队列严重拥塞排队，
+// NCU Profiler 中显示大量的 "Stall MIO Throttle" 和 "Long Scoreboard" 停顿！' onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+<pre><code><span class="tok-comment">// Kernel 3 内层循环编译出的核心 PTX 指令序列：</span>
+<span class="tok-asm">ld.shared.f32</span>   <span class="tok-reg">%f91</span>, [<span class="tok-reg">%r8</span>+<span class="tok-number">3456</span>];        <span class="tok-comment">// 指令 1：从共享内存加载 1 个 float (As 元素) 到寄存器 %f91</span>
+<span class="tok-asm">ld.shared.f32</span>   <span class="tok-reg">%f92</span>, [<span class="tok-reg">%r7</span>+<span class="tok-number">108</span>];         <span class="tok-comment">// 指令 2：从共享内存加载 1 个 float (Bs 元素) 到寄存器 %f92</span>
+<span class="tok-asm">fma.rn.f32</span>      <span class="tok-reg">%f93</span>, <span class="tok-reg">%f92</span>, <span class="tok-reg">%f91</span>, <span class="tok-reg">%f90</span>;  <span class="tok-comment">// 指令 3：乘加融合指令，计算 %f93 = %f92 * %f91 + %f90</span>
+
+<span class="tok-comment">// 严重瓶颈剖析：</span>
+<span class="tok-comment">// 每次计算只执行 1 次算术乘加 FMA，却需要执行 2 次共享内存加载 LDS！</span>
+<span class="tok-comment">// 访存指令频率远高于算术指令，导致硬件 MIO (Memory Input/Output) 指令队列严重拥塞排队，</span>
+<span class="tok-comment">// NCU Profiler 中显示大量的 "Stall MIO Throttle" 和 "Long Scoreboard" 停顿！</span></code></pre>
+</div>
+</div>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Profiler Instruction Mix" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/78132f97b7ca58af.png"/>
+</div>
+<figcaption><span class="fig-icon">图 12</span> Kernel 3 指令分布：绝大部分指令全是 LDS（共享内存加载），FMA 乘加指令被严重稀释</figcaption>
+</figure>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Profiler Warp Stalls" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/9eb938a4ae70c819.png"/>
+</div>
+<figcaption><span class="fig-icon">图 13</span> Warp 停顿原因：主要卡在 Stall MIO Throttle 与 Long Scoreboard，即共享内存访存流水线严重阻塞排队</figcaption>
+</figure>
+</section>
+<!-- Kernel 4 -->
+<section class="section-block" id="kernel-4">
+<h2 class="section-heading"><span class="heading-num">05.</span> Kernel 4: 一维分块提升单线程算力（1D Blocktiling）</h2>
+<p>诊断结果非常明确：<strong>共享内存读取指令太多，把 MIO 队列堵死了。</strong></p>
+<p><strong>解决方案：</strong>不再让一个线程只算一个结果，而是让<strong>每个线程连续计算 TM=8 个结果</strong>！这样多个输出可以共享对同一个 B 矩阵元素的读取，将其存入私有寄存器中，成倍减少对 SMEM 的请求。</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="1D Blocktiling" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/a22140a5eb944473.png"/>
+</div>
+<figcaption><span class="fig-icon">图 14</span> 一维分块：每个线程负责计算一整列中连续的 TM=8 个元素</figcaption>
+</figure>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel4_1d_blocktiling.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 1. 为当前线程分配输出缓冲区：在寄存器堆中开辟大小为 TM（=8）的私有数组
+// 每个线程将计算结果矩阵 C 中沿列方向连续的 8 个元素！
+float threadResults[TM] = {0.0f};
+
+// 2. 外层循环：沿 K 轴以 BK（=8）为切片步长滑动
+for (uint bkIdx = 0; bkIdx &lt; K; bkIdx += BK) {
+  // 协作加载：Block 规模为 BM x BK 和 BK x BN（64x8），共 64x8x2 = 1024 浮点数，正好对应 1024 线程
+  As[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
+  Bs[innerRowB * BN + innerColB] = B[innerRowB * N + innerColB];
+  __syncthreads(); // 等待 SMEM 填充完毕
+
+  A += BK;     // A 指针向右滑 8 列
+  B += BK * N; // B 指针向下滑 8 行
+
+  // 3. 计算单线程负责的 8 个结果：
+  // 核心优化：将 dotIdx（沿 K 深度）置于最外层，将针对结果的 resIdx 放在内层！
+  for (uint dotIdx = 0; dotIdx &lt; BK; ++dotIdx) {
+    // 关键复用：将当前所需的 Bs 元素先读入临时标量寄存器 Btmp！
+    // 这样接下来的 8 次乘法都能无偿复用这个寄存器值，免去 7 次重复读取 SMEM！
+    float Btmp = Bs[dotIdx * BN + threadCol];
+    for (uint resIdx = 0; resIdx &lt; TM; ++resIdx) {
+      threadResults[resIdx] +=
+          As[(threadRow * TM + resIdx) * BK + dotIdx] * Btmp;
+    }
+  }
+  __syncthreads(); // 确保当前块使用完毕，保护下一轮写入
+}" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span></div>
+<pre><code><span class="tok-comment">// 1. 为当前线程分配输出缓冲区：在寄存器堆中开辟大小为 TM（=8）的私有数组</span>
+<span class="tok-comment">// 每个线程将计算结果矩阵 C 中沿列方向连续的 8 个元素！</span>
+<span class="tok-type">float</span> threadResults[TM] = {<span class="tok-number">0.0f</span>};
+
+<span class="tok-comment">// 2. 外层循环：沿 K 轴以 BK（=8）为切片步长滑动</span>
+<span class="tok-keyword">for</span> (<span class="tok-type">uint</span> bkIdx = <span class="tok-number">0</span>; bkIdx &lt; K; bkIdx += BK) {
+  <span class="tok-comment">// 协作加载：Block 规模为 BM x BK 和 BK x BN（64x8），共 64x8x2 = 1024 浮点数，正好对应 1024 线程</span>
+  As[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
+  Bs[innerRowB * BN + innerColB] = B[innerRowB * N + innerColB];
+  <span class="tok-builtin">__syncthreads</span>(); <span class="tok-comment">// 等待 SMEM 填充完毕</span>
+
+  A += BK;     <span class="tok-comment">// A 指针向右滑 8 列</span>
+  B += BK * N; <span class="tok-comment">// B 指针向下滑 8 行</span>
+
+  <span class="tok-comment">// 3. 计算单线程负责的 8 个结果：</span>
+  <span class="tok-comment">// 核心优化：将 dotIdx（沿 K 深度）置于最外层，将针对结果的 resIdx 放在内层！</span>
+  <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> dotIdx = <span class="tok-number">0</span>; dotIdx &lt; BK; ++dotIdx) {
+    <span class="tok-comment">// 关键复用：将当前所需的 Bs 元素先读入临时标量寄存器 Btmp！</span>
+    <span class="tok-comment">// 这样接下来的 8 次乘法都能无偿复用这个寄存器值，免去 7 次重复读取 SMEM！</span>
+    <span class="tok-type">float</span> Btmp = Bs[dotIdx * BN + threadCol];
+    <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> resIdx = <span class="tok-number">0</span>; resIdx &lt; TM; ++resIdx) {
+      threadResults[resIdx] +=
+          As[(threadRow * TM + resIdx) * BK + dotIdx] * Btmp;
+    }
+  }
+  <span class="tok-builtin">__syncthreads</span>(); <span class="tok-comment">// 确保当前块使用完毕，保护下一轮写入</span>
+}</code></pre>
+</div>
+</div>
+<p><strong>访存开销数学对比：</strong></p>
+<ul>
+<li><strong>Kernel 3（单线程单结果）</strong>：每个计算结果消耗 <code>K/16</code> 次 GMEM 读取，<code>2K</code> 次 SMEM 读取；</li>
+<li><strong>Kernel 4（单线程 8 结果）</strong>：每个计算结果仅消耗 <code>K/32</code> 次 GMEM 读取，<strong><code>1.125 K</code> 次 SMEM 读取（SMEM 压力几乎减半）</strong>！</li>
+</ul>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel4_vectorized.sass</span>
+<div class="code-header-right">
+<span class="code-lang-badge">SASS Machine Code</span>
+<button class="copy-code-btn" data-code='// SASS 汇编层剖析：编译器将连续的内存加载自动向量化
+LDS     R26, [R35.X4+0x800]; // 标量读取 As：每次仅加载 32 位（1 个 float）
+LDS.128 R8,  [R2];           // 向量化读取 Bs：单条指令直接加载 128 位（4 个 float 宽向量）！
+LDS.128 R12, [R2+0x20];      // 再次 128 位向量化读取接下来的 4 个 float
+LDS     R24, [R35.X4+0x900]; // 标量读取 As 下一个元素
+LDS.128 R20, [R2+0x60];      // 继续 128 位向量化读取 Bs
+LDS     R36, [R35.X4+0xb00];
+LDS.128 R16, [R2+0x40];
+LDS.128 R4,  [R2+0x80];
+LDS     R38, [R35.X4+0xd00];
+
+// 硬件启示：
+// Bs 沿行连续存储，硬件原生生成了高效的 LDS.128 向量指令；
+// 而 As 沿列存储导致无法向量化，这直接启发了后续 Kernel 6 中的 "As 显存转置" 优化！' onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span></div>
+<pre><code><span class="tok-comment">// SASS 汇编层剖析：编译器将连续的内存加载自动向量化</span>
+<span class="tok-asm">LDS</span>     <span class="tok-reg">R26</span>, [<span class="tok-reg">R35.X4</span>+<span class="tok-number">0x800</span>]; <span class="tok-comment">// 标量读取 As：每次仅加载 32 位（1 个 float）</span>
+<span class="tok-asm">LDS.128</span> <span class="tok-reg">R8</span>,  [<span class="tok-reg">R2</span>];           <span class="tok-comment">// 向量化读取 Bs：单条指令直接加载 128 位（4 个 float 宽向量）！</span>
+<span class="tok-asm">LDS.128</span> <span class="tok-reg">R12</span>, [<span class="tok-reg">R2</span>+<span class="tok-number">0x20</span>];      <span class="tok-comment">// 再次 128 位向量化读取接下来的 4 个 float</span>
+<span class="tok-asm">LDS</span>     <span class="tok-reg">R24</span>, [<span class="tok-reg">R35.X4</span>+<span class="tok-number">0x900</span>]; <span class="tok-comment">// 标量读取 As 下一个元素</span>
+<span class="tok-asm">LDS.128</span> <span class="tok-reg">R20</span>, [<span class="tok-reg">R2</span>+<span class="tok-number">0x60</span>];      <span class="tok-comment">// 继续 128 位向量化读取 Bs</span>
+<span class="tok-asm">LDS</span>     <span class="tok-reg">R36</span>, [<span class="tok-reg">R35.X4</span>+<span class="tok-number">0xb00</span>];
+<span class="tok-asm">LDS.128</span> <span class="tok-reg">R16</span>, [<span class="tok-reg">R2</span>+<span class="tok-number">0x40</span>];
+<span class="tok-asm">LDS.128</span> <span class="tok-reg">R4</span>,  [<span class="tok-reg">R2</span>+<span class="tok-number">0x80</span>];
+<span class="tok-asm">LDS</span>     <span class="tok-reg">R38</span>, [<span class="tok-reg">R35.X4</span>+<span class="tok-number">0xd00</span>];
+
+<span class="tok-comment">// 硬件启示：</span>
+<span class="tok-comment">// Bs 沿行连续存储，硬件原生生成了高效的 LDS.128 向量指令；</span>
+<span class="tok-comment">// 而 As 沿列存储导致无法向量化，这直接启发了后续 Kernel 6 中的 "As 显存转置" 优化！</span></code></pre>
+</div>
+</div>
+<p><strong>优化效果：</strong>性能达到 <strong>8,474.7 GFLOPs（相对 cuBLAS 36.5%）</strong>，相比 Kernel 3 提速 2.8 倍！Warp 因内存等待导致的停顿周期断崖式下降：</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Kernel 4 Warp Stalls" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/bc153126b7e4f362.png"/>
+</div>
+<figcaption><span class="fig-icon">图 15</span> Kernel 4 内存停顿指标大幅下降，计算单元得以持续工作</figcaption>
+</figure>
+</section>
+<!-- Kernel 5 -->
+<section class="section-block" id="kernel-5">
+<h2 class="section-heading"><span class="heading-num">06.</span> Kernel 5: 二维分块与寄存器外积（2D Blocktiling）</h2>
+<p>既然一维分块可以沿一列复用 B 元素，那如果让单线程同时跨行和列，负责一个 <strong>$TM \times TN = 8 \times 8$ 的二维方块</strong>，效果会怎样？</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="1D vs 2D Tiling" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/59ba73e36bd43ca9.png"/>
+</div>
+<figcaption><span class="fig-icon">图 16</span> 计算几何原理：计算二维方块比计算一维长条能以几何级数共享更多的数据</figcaption>
+</figure>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Raising Arithmetic Intensity" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/4216cabf40cd4bee.png"/>
+</div>
+<figcaption><span class="fig-icon">图 17</span> 2D 寄存器分块大幅拉升算术强度：加载 2 个向量，直接做外积矩阵更新</figcaption>
+</figure>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Kernel 5 GMEM Loading" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/6640bc3e33eb8c58.png"/>
+</div>
+<figcaption><span class="fig-icon">图 18</span> Kernel 5 全局内存到共享内存的协作填充过程</figcaption>
+</figure>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel5_gmem_stride_load.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// Kernel 5 中协作填充共享内存缓存（BM=128, BN=128, BK=8，Block 内仅 256 线程）：
+// 256 个线程需搬运 128x8 = 1024 个 A 元素，因此每个线程必须循环多轮搬运！
+// 步长 strideA = 线程总数 / BK = 256 / 8 = 32 行
+for (uint loadOffset = 0; loadOffset &lt; BM; loadOffset += strideA) {
+  As[(innerRowA + loadOffset) * BK + innerColA] =
+      A[(innerRowA + loadOffset) * K + innerColA];
+}
+
+// 类似地，多步长协同搬运 B 矩阵的 1024 个分块元素：
+// 步长 strideB = 线程总数 / BN = 256 / 128 = 2 行
+for (uint loadOffset = 0; loadOffset &lt; BK; loadOffset += strideB) {
+  Bs[(innerRowB + loadOffset) * BN + innerColB] =
+      B[(innerRowB + loadOffset) * N + innerColB];
+}
+
+// 屏障同步：必须等待 256 线程将全部 2048 个浮点数全部落入 SMEM，才能开启外积计算！
+__syncthreads();" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span></div>
+<pre><code><span class="tok-comment">// Kernel 5 中协作填充共享内存缓存（BM=128, BN=128, BK=8，Block 内仅 256 线程）：</span>
+<span class="tok-comment">// 256 个线程需搬运 128x8 = 1024 个 A 元素，因此每个线程必须循环多轮搬运！</span>
+<span class="tok-comment">// 步长 strideA = 线程总数 / BK = 256 / 8 = 32 行</span>
+<span class="tok-keyword">for</span> (<span class="tok-type">uint</span> loadOffset = <span class="tok-number">0</span>; loadOffset &lt; BM; loadOffset += strideA) {
+  As[(innerRowA + loadOffset) * BK + innerColA] =
+      A[(innerRowA + loadOffset) * K + innerColA];
+}
+
+<span class="tok-comment">// 类似地，多步长协同搬运 B 矩阵的 1024 个分块元素：</span>
+<span class="tok-comment">// 步长 strideB = 线程总数 / BN = 256 / 128 = 2 行</span>
+<span class="tok-keyword">for</span> (<span class="tok-type">uint</span> loadOffset = <span class="tok-number">0</span>; loadOffset &lt; BK; loadOffset += strideB) {
+  Bs[(innerRowB + loadOffset) * BN + innerColB] =
+      B[(innerRowB + loadOffset) * N + innerColB];
+}
+
+<span class="tok-comment">// 屏障同步：必须等待 256 线程将全部 2048 个浮点数全部落入 SMEM，才能开启外积计算！</span>
+<span class="tok-builtin">__syncthreads</span>();</code></pre>
+</div>
+</div>
+<p>在内层循环中，我们将 <code>As</code> 的一列（长度 TM）和 <code>Bs</code> 的一行（长度 TN）分别加载到<strong>线程私有寄存器数组</strong> <code>regM</code> 与 <code>regN</code> 中，然后执行**外积（Outer Product）**累加：</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Register Blocking Outer Product" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/e5f721592a4d3736.png"/>
+</div>
+<figcaption><span class="fig-icon">图 19</span> 寄存器外积累加时间序列：从 SMEM 搬入寄存器，在纯寄存器内狂飙 FMA</figcaption>
+</figure>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel5_2d_register_blocking.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 1. 线程私有寄存器数组定义：
+float threadResults[TM * TN] = {0.0f}; // 8x8 = 64 个累加寄存器，存放最终结果
+float regM[TM] = {0.0f};               // 缓存 As 对应的当前列（8 个 float）
+float regN[TN] = {0.0f};               // 缓存 Bs 对应的当前行（8 个 float）
+
+// 2. 外层沿 K 轴滑动分块
+for (uint bkIdx = 0; bkIdx &lt; K; bkIdx += BK) {
+  // 协作搬运：256 个线程通过多步长循环完整填充 128x8 的 As 和 8x128 的 Bs
+  for (uint loadOffset = 0; loadOffset &lt; BM; loadOffset += strideA) {
+    As[(innerRowA + loadOffset) * BK + innerColA] =
+        A[(innerRowA + loadOffset) * K + innerColA];
+  }
+  for (uint loadOffset = 0; loadOffset &lt; BK; loadOffset += strideB) {
+    Bs[(innerRowB + loadOffset) * BN + innerColB] =
+        B[(innerRowB + loadOffset) * N + innerColB];
+  }
+  __syncthreads(); // 等待数据全部就绪
+
+  A += BK;     // 指针向右滑 BK=8 列
+  B += BK * N; // 指针向下滑 BK=8 行
+
+  // 3. 计算阶段：遍历深度切片 dotIdx（0 到 7）
+  for (uint dotIdx = 0; dotIdx &lt; BK; ++dotIdx) {
+    // 关键步 ①：从共享内存将 A 的 8 个元素读入寄存器向量 regM
+    for (uint i = 0; i &lt; TM; ++i) {
+      regM[i] = As[(threadRow * TM + i) * BK + dotIdx];
+    }
+    // 关键步 ②：从共享内存将 B 的 8 个元素读入寄存器向量 regN
+    for (uint i = 0; i &lt; TN; ++i) {
+      regN[i] = Bs[dotIdx * BN + threadCol * TN + i];
+    }
+
+    // 关键步 ③：执行 8x8 寄存器外积（Outer Product）！
+    // 仅通过 8 + 8 = 16 次 SMEM 访存，就支撑起了 8 x 8 = 64 次纯寄存器间的 FMA 乘加！
+    // 算术强度相比前代暴增 4 倍！
+    for (uint resIdxM = 0; resIdxM &lt; TM; ++resIdxM) {
+      for (uint resIdxN = 0; resIdxN &lt; TN; ++resIdxN) {
+        threadResults[resIdxM * TN + resIdxN] +=
+            regM[resIdxM] * regN[resIdxN];
+      }
+    }
+  }
+  __syncthreads();
+}" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span><span>29</span><span>30</span><span>31</span><span>32</span><span>33</span><span>34</span><span>35</span><span>36</span><span>37</span><span>38</span><span>39</span><span>40</span><span>41</span><span>42</span><span>43</span><span>44</span></div>
+<pre><code><span class="tok-comment">// 1. 线程私有寄存器数组定义：</span>
+<span class="tok-type">float</span> threadResults[TM * TN] = {<span class="tok-number">0.0f</span>}; <span class="tok-comment">// 8x8 = 64 个累加寄存器，存放最终结果</span>
+<span class="tok-type">float</span> regM[TM] = {<span class="tok-number">0.0f</span>};               <span class="tok-comment">// 缓存 As 对应的当前列（8 个 float）</span>
+<span class="tok-type">float</span> regN[TN] = {<span class="tok-number">0.0f</span>};               <span class="tok-comment">// 缓存 Bs 对应的当前行（8 个 float）</span>
+
+<span class="tok-comment">// 2. 外层沿 K 轴滑动分块</span>
+<span class="tok-keyword">for</span> (<span class="tok-type">uint</span> bkIdx = <span class="tok-number">0</span>; bkIdx &lt; K; bkIdx += BK) {
+  <span class="tok-comment">// 协作搬运：256 个线程通过多步长循环完整填充 128x8 的 As 和 8x128 的 Bs</span>
+  <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> loadOffset = <span class="tok-number">0</span>; loadOffset &lt; BM; loadOffset += strideA) {
+    As[(innerRowA + loadOffset) * BK + innerColA] =
+        A[(innerRowA + loadOffset) * K + innerColA];
+  }
+  <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> loadOffset = <span class="tok-number">0</span>; loadOffset &lt; BK; loadOffset += strideB) {
+    Bs[(innerRowB + loadOffset) * BN + innerColB] =
+        B[(innerRowB + loadOffset) * N + innerColB];
+  }
+  <span class="tok-builtin">__syncthreads</span>(); <span class="tok-comment">// 等待数据全部就绪</span>
+
+  A += BK;     <span class="tok-comment">// 指针向右滑 BK=8 列</span>
+  B += BK * N; <span class="tok-comment">// 指针向下滑 BK=8 行</span>
+
+  <span class="tok-comment">// 3. 计算阶段：遍历深度切片 dotIdx（0 到 7）</span>
+  <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> dotIdx = <span class="tok-number">0</span>; dotIdx &lt; BK; ++dotIdx) {
+    <span class="tok-comment">// 关键步 ①：从共享内存将 A 的 8 个元素读入寄存器向量 regM</span>
+    <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> i = <span class="tok-number">0</span>; i &lt; TM; ++i) {
+      regM[i] = As[(threadRow * TM + i) * BK + dotIdx];
+    }
+    <span class="tok-comment">// 关键步 ②：从共享内存将 B 的 8 个元素读入寄存器向量 regN</span>
+    <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> i = <span class="tok-number">0</span>; i &lt; TN; ++i) {
+      regN[i] = Bs[dotIdx * BN + threadCol * TN + i];
+    }
+
+    <span class="tok-comment">// 关键步 ③：执行 8x8 寄存器外积（Outer Product）！</span>
+    <span class="tok-comment">// 仅通过 8 + 8 = 16 次 SMEM 访存，就支撑起了 8 x 8 = 64 次纯寄存器间的 FMA 乘加！</span>
+    <span class="tok-comment">// 算术强度相比前代暴增 4 倍！</span>
+    <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> resIdxM = <span class="tok-number">0</span>; resIdxM &lt; TM; ++resIdxM) {
+      <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> resIdxN = <span class="tok-number">0</span>; resIdxN &lt; TN; ++resIdxN) {
+        threadResults[resIdxM * TN + resIdxN] +=
+            regM[resIdxM] * regN[resIdxN];
+      }
+    }
+  }
+  <span class="tok-builtin">__syncthreads</span>();
+}</code></pre>
+</div>
+</div>
+<p><strong>此时每个结果的平均访存：</strong>GMEM 降至 <code>K/64</code>，SMEM 降至 <code>K/4</code>！</p>
+<p><strong>优化效果：</strong>性能跨越至 <strong>15,971.7 GFLOPs（约 16 TFLOPs，达到 cuBLAS 的 68.7%）</strong>！</p>
+</section>
+<!-- Kernel 6 -->
+<section class="section-block" id="kernel-6">
+<h2 class="section-heading"><span class="heading-num">07.</span> Kernel 6: 向量化访存优化（Vectorized Memory Access）</h2>
+<p>为追求极致，我们进一步在内存指令层面压榨吞吐：</p>
+<ol>
+<li><strong>在写入 SMEM 时对 As 进行转置</strong>：原本读取 <code>As</code> 时在内存中不是跨步连续的，转置后，线程对 <code>As</code> 的读取也能使用 128 位宽向量化加载（SASS 中对应 <code>LDS.128</code> 指令）；</li>
+<li><strong>对全局内存使用 <code>float4</code> 向量类型进行 128 位宽读写</strong>：将单条 32 位的 <code>LDG.E</code> 指令替换为极速的 <code>LDG.E.128</code>。</li>
+</ol>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="As Transpose for Vectorized Load" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/32e37a7ae72d0e30.png"/>
+</div>
+<figcaption><span class="fig-icon">图 20</span> 转置 As 布局：消除跨步读取，释放 LDS.128 向量化加载潜能</figcaption>
+</figure>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel6_vectorized_and_transpose.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 1. 向量化读取全局内存：
+// 将 float* 强转为 float4* 指针，向编译器保证指针已按 16 字节对齐，
+// 促使 NVCC 生成单条 128 位的全局加载指令（LDG.E.128）！
+float4 tmp = reinterpret_cast&lt;float4 *&gt;(&amp;A[innerRowA * K + innerColA * 4])[0];
+
+// 2. 空间布局转置：在写入共享内存 As 时执行转置（行列调换存储）！
+// 使得原本沿列分布的数据在共享内存中变成连续行存储，
+// 从而让后续线程读取 As 时也能完全触发 LDS.128 向量化加载指令！
+As[(innerColA * 4 + 0) * BM + innerRowA] = tmp.x;
+As[(innerColA * 4 + 1) * BM + innerRowA] = tmp.y;
+As[(innerColA * 4 + 2) * BM + innerRowA] = tmp.z;
+As[(innerColA * 4 + 3) * BM + innerRowA] = tmp.w;
+
+// 3. Bs 本身在内存中就是行主序连续的，直接 128 位对齐写入：
+reinterpret_cast&lt;float4 *&gt;(&amp;Bs[innerRowB * BN + innerColB * 4])[0] =
+    reinterpret_cast&lt;float4 *&gt;(&amp;B[innerRowB * N + innerColB * 4])[0];
+
+__syncthreads();" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span></div>
+<pre><code><span class="tok-comment">// 1. 向量化读取全局内存：</span>
+<span class="tok-comment">// 将 float* 强转为 float4* 指针，向编译器保证指针已按 16 字节对齐，</span>
+<span class="tok-comment">// 促使 NVCC 生成单条 128 位的全局加载指令（LDG.E.128）！</span>
+<span class="tok-type">float4</span> tmp = <span class="tok-builtin">reinterpret_cast</span>&lt;<span class="tok-type">float4</span> *&gt;(&amp;A[innerRowA * K + innerColA * <span class="tok-number">4</span>])[<span class="tok-number">0</span>];
+
+<span class="tok-comment">// 2. 空间布局转置：在写入共享内存 As 时执行转置（行列调换存储）！</span>
+<span class="tok-comment">// 使得原本沿列分布的数据在共享内存中变成连续行存储，</span>
+<span class="tok-comment">// 从而让后续线程读取 As 时也能完全触发 LDS.128 向量化加载指令！</span>
+As[(innerColA * <span class="tok-number">4</span> + <span class="tok-number">0</span>) * BM + innerRowA] = tmp.x;
+As[(innerColA * <span class="tok-number">4</span> + <span class="tok-number">1</span>) * BM + innerRowA] = tmp.y;
+As[(innerColA * <span class="tok-number">4</span> + <span class="tok-number">2</span>) * BM + innerRowA] = tmp.z;
+As[(innerColA * <span class="tok-number">4</span> + <span class="tok-number">3</span>) * BM + innerRowA] = tmp.w;
+
+<span class="tok-comment">// 3. Bs 本身在内存中就是行主序连续的，直接 128 位对齐写入：</span>
+<span class="tok-builtin">reinterpret_cast</span>&lt;<span class="tok-type">float4</span> *&gt;(&amp;Bs[innerRowB * BN + innerColB * <span class="tok-number">4</span>])[<span class="tok-number">0</span>] =
+    <span class="tok-builtin">reinterpret_cast</span>&lt;<span class="tok-type">float4</span> *&gt;(&amp;B[innerRowB * N + innerColB * <span class="tok-number">4</span>])[<span class="tok-number">0</span>];
+
+<span class="tok-builtin">__syncthreads</span>();</code></pre>
+</div>
+</div>
+<div class="callout-box info">
+<strong>为何需要 <code>reinterpret_cast&lt;float4*&gt;</code>？</strong><br/>
+            C++ 编译器无法在编译期确认外部传入的 <code>float*</code> 指针是否符合 128 位（16 字节）对齐。强制指针转换的本质是程序员向编译器**立下契约**保证指针绝对已对齐，促使 NVCC 生成原生的 <code>LDG.E.128</code> 汇编指令。
+          </div>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel6_alignment_contract.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 方案 A：通过 reinterpret_cast&lt;float4*&gt; 向编译器立下 128 位对齐契约
+reinterpret_cast&lt;float4 *&gt;(&amp;Bs[innerRowB * BN + innerColB * 4])[0] =
+    reinterpret_cast&lt;float4 *&gt;(&amp;B[innerRowB * N + innerColB * 4])[0];
+
+// 方案 B：手动展开 4 次标量循环（或使用 #pragma unroll）
+Bs[innerRowB * BN + innerColB * 4 + 0] = B[innerRowB * N + innerColB * 4 + 0];
+Bs[innerRowB * BN + innerColB * 4 + 1] = B[innerRowB * N + innerColB * 4 + 1];
+Bs[innerRowB * BN + innerColB * 4 + 2] = B[innerRowB * N + innerColB * 4 + 2];
+Bs[innerRowB * BN + innerColB * 4 + 3] = B[innerRowB * N + innerColB * 4 + 3];
+
+// 深度机理：
+// 为何编译器不能自动将方案 B 优化为 128 位宽加载？
+// 原因是函数入参为裸指针 float* B，编译器在编译期无法求证其运行时是否严格 16 字节对齐！
+// 显式 reinterpret_cast&lt;float4*&gt; 充当了程序员向编译器的对齐担保，合法解锁了 LDG.E.128 原生向量指令！" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span></div>
+<pre><code><span class="tok-comment">// 方案 A：通过 reinterpret_cast&lt;float4*&gt; 向编译器立下 128 位对齐契约</span>
+<span class="tok-builtin">reinterpret_cast</span>&lt;<span class="tok-type">float4</span> *&gt;(&amp;Bs[innerRowB * BN + innerColB * <span class="tok-number">4</span>])[<span class="tok-number">0</span>] =
+    <span class="tok-builtin">reinterpret_cast</span>&lt;<span class="tok-type">float4</span> *&gt;(&amp;B[innerRowB * N + innerColB * <span class="tok-number">4</span>])[<span class="tok-number">0</span>];
+
+<span class="tok-comment">// 方案 B：手动展开 4 次标量循环（或使用 #pragma unroll）</span>
+Bs[innerRowB * BN + innerColB * <span class="tok-number">4</span> + <span class="tok-number">0</span>] = B[innerRowB * N + innerColB * <span class="tok-number">4</span> + <span class="tok-number">0</span>];
+Bs[innerRowB * BN + innerColB * <span class="tok-number">4</span> + <span class="tok-number">1</span>] = B[innerRowB * N + innerColB * <span class="tok-number">4</span> + <span class="tok-number">1</span>];
+Bs[innerRowB * BN + innerColB * <span class="tok-number">4</span> + <span class="tok-number">2</span>] = B[innerRowB * N + innerColB * <span class="tok-number">4</span> + <span class="tok-number">2</span>];
+Bs[innerRowB * BN + innerColB * <span class="tok-number">4</span> + <span class="tok-number">3</span>] = B[innerRowB * N + innerColB * <span class="tok-number">4</span> + <span class="tok-number">3</span>];
+
+<span class="tok-comment">// 深度机理：</span>
+<span class="tok-comment">// 为何编译器不能自动将方案 B 优化为 128 位宽加载？</span>
+<span class="tok-comment">// 原因是函数入参为裸指针 float* B，编译器在编译期无法求证其运行时是否严格 16 字节对齐！</span>
+<span class="tok-comment">// 显式 reinterpret_cast&lt;float4*&gt; 充当了程序员向编译器的对齐担保，合法解锁了 LDG.E.128 原生向量指令！</span></code></pre>
+</div>
+</div>
+<p><strong>优化效果：</strong>性能推进至 <strong>18,237.3 GFLOPs（cuBLAS 的 78.4%）</strong>！</p>
+</section>
+<!-- Kernel 9 -->
+<section class="section-block" id="kernel-9">
+<h2 class="section-heading"><span class="heading-num">08.</span> Kernel 9: 参数自动调优（Autotuning）</h2>
+<p>目前我们的 Kernel 积累了 5 个核心编译期模板参数：</p>
+<ul>
+<li><code>BM, BN, BK</code>：从全局内存缓存到共享内存的 Tile 体积；</li>
+<li><code>TM, TN</code>：从共享内存缓存到寄存器的单线程工作分块体积。</li>
+</ul>
+<p>通过编写搜索脚本，在排除硬件非法的无效参数后，针对 RTX A6000 进行自动化调优探索：</p>
+<ul>
+<li><strong>RTX A6000 最佳参数</strong>：<code>BM=BN=128, BK=16, TM=TN=8</code>，性能提升至 <strong>19,721.0 GFLOPs（84.8%）</strong>；</li>
+<li><strong>A100 架构最佳参数</strong>：由于架构硬件差异，最佳设置为 <code>BM=BN=64, BK=16, TM=TN=4</code>。这直接证明了高性能底层计算库（如 Triton / cuBLAS）必须配备 Autotuning 机制的原因。</li>
+</ul>
+</section>
+<!-- Kernel 10 -->
+<section class="section-block" id="kernel-10">
+<h2 class="section-heading"><span class="heading-num">09.</span> Kernel 10: 线程束级分块（Warptiling）</h2>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Loop Structure" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/84794bdf8623e6d6.png"/>
+</div>
+<figcaption><span class="fig-icon">图 21</span> 当前循环结构示意：Block 级与 Thread 级之间仍缺少一层关键纽带</figcaption>
+</figure>
+<p>在 Blocktiling 与 Threadtiling 之间，我们正式引入第三层分块：<strong>Warptiling（线程束级分块）</strong>。</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Warp Schedulers" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/c9f98bf7682b8d48.png"/>
+</div>
+<figcaption><span class="fig-icon">图 22</span> SM 内部通常包含 4 个 Warp 调度器，Warptiling 与硬件调度结构完美契合</figcaption>
+</figure>
+<p><strong>引入 Warptiling 的三重收益：</strong></p>
+<ol>
+<li><strong>消除共享内存 Bank 冲突</strong>：Bank 冲突仅发生于同一 Warp 内各线程之间。通过将连续的 Warp 分配到彼此独立的 Warptile，从根本上隔离了不同 Warp 间的 SMEM 竞争；</li>
+<li><strong>提升寄存器缓存局部性</strong>：紧凑的局部数据排列使得现代 GPU 的寄存器缓存命中率更高；</li>
+<li><strong>为未来迁移 Tensor Core 铺路</strong>：Tensor Core 的 <code>mma.sync</code> 指令本身就是以 Warp 为单位调用的，Warptiling 为其提供了天然的切分结构。</li>
+</ol>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Kernel 10 Warptiling Architecture" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/e7c96ea812fa849b.png"/>
+</div>
+<figcaption><span class="fig-icon">图 23</span> 三级分块完整金字塔：Blocktile (跨 SM) $\rightarrow$ Warptile (跨调度器) $\rightarrow$ Threadtile (指令级并行)</figcaption>
+</figure>
+<p>核心计算代码：</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">kernel10_warptiling.cu</span>
+<div class="code-header-right">
+<span class="code-lang-badge">CUDA C++</span>
+<button class="copy-code-btn" data-code="// 核心计算循环：三级分块金字塔
+// 沿 K 维度遍历共享内存内容（dotIdx 0 到 BK-1）
+for (uint dotIdx = 0; dotIdx &lt; BK; ++dotIdx) {
+  // 1. 为当前 Warp 分配的子矩阵填充寄存器 regM：
+  // 映射硬件坐标：warpRow（Warp 在 Block 内的行号）、wSubRowIdx（Warp 内部子迭代）
+  // 精准将当前线程在 Warp 内所需的数据从 SMEM 搬入寄存器
+  for (uint wSubRowIdx = 0; wSubRowIdx &lt; WMITER; ++wSubRowIdx) {
+    for (uint i = 0; i &lt; TM; ++i) {
+      regM[wSubRowIdx * TM + i] =
+          As[(dotIdx * BM) + warpRow * WM + wSubRowIdx * WSUBM +
+             threadRowInWarp * TM + i];
+    }
+  }
+
+  // 2. 为当前 Warp 分配的子矩阵填充寄存器 regN：
+  for (uint wSubColIdx = 0; wSubColIdx &lt; WNITER; ++wSubColIdx) {
+    for (uint i = 0; i &lt; TN; ++i) {
+      regN[wSubColIdx * TN + i] =
+          Bs[(dotIdx * BN) + warpCol * WN + wSubColIdx * WSUBN +
+             threadColInWarp * TN + i];
+    }
+  }
+
+  // 3. 执行 Warptile 矩阵乘法：
+  // 这一步与硬件 Warp 调度器完美契合，消除同一 Warp 内不同线程争夺同一 Bank 的冲突，
+  // 并且具备极致的寄存器缓存局部性（Register Cache Locality）！
+  for (uint wSubRowIdx = 0; wSubRowIdx &lt; WMITER; ++wSubRowIdx) {
+    for (uint wSubColIdx = 0; wSubColIdx &lt; WNITER; ++wSubColIdx) {
+      for (uint resIdxM = 0; resIdxM &lt; TM; ++resIdxM) {
+        for (uint resIdxN = 0; resIdxN &lt; TN; ++resIdxN) {
+          threadResults[(wSubRowIdx * TM + resIdxM) * (WNITER * TN) +
+                        (wSubColIdx * TN) + resIdxN] +=
+              regM[wSubRowIdx * TM + resIdxM] * regN[wSubColIdx * TN + resIdxN];
+        }
+      }
+    }
+  }
+}" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span><span>29</span><span>30</span><span>31</span><span>32</span><span>33</span><span>34</span><span>35</span><span>36</span><span>37</span><span>38</span></div>
+<pre><code><span class="tok-comment">// 核心计算循环：三级分块金字塔</span>
+<span class="tok-comment">// 沿 K 维度遍历共享内存内容（dotIdx 0 到 BK-1）</span>
+<span class="tok-keyword">for</span> (<span class="tok-type">uint</span> dotIdx = <span class="tok-number">0</span>; dotIdx &lt; BK; ++dotIdx) {
+  <span class="tok-comment">// 1. 为当前 Warp 分配的子矩阵填充寄存器 regM：</span>
+  <span class="tok-comment">// 映射硬件坐标：warpRow（Warp 在 Block 内的行号）、wSubRowIdx（Warp 内部子迭代）</span>
+  <span class="tok-comment">// 精准将当前线程在 Warp 内所需的数据从 SMEM 搬入寄存器</span>
+  <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> wSubRowIdx = <span class="tok-number">0</span>; wSubRowIdx &lt; WMITER; ++wSubRowIdx) {
+    <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> i = <span class="tok-number">0</span>; i &lt; TM; ++i) {
+      regM[wSubRowIdx * TM + i] =
+          As[(dotIdx * BM) + warpRow * WM + wSubRowIdx * WSUBM +
+             threadRowInWarp * TM + i];
+    }
+  }
+
+  <span class="tok-comment">// 2. 为当前 Warp 分配的子矩阵填充寄存器 regN：</span>
+  <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> wSubColIdx = <span class="tok-number">0</span>; wSubColIdx &lt; WNITER; ++wSubColIdx) {
+    <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> i = <span class="tok-number">0</span>; i &lt; TN; ++i) {
+      regN[wSubColIdx * TN + i] =
+          Bs[(dotIdx * BN) + warpCol * WN + wSubColIdx * WSUBN +
+             threadColInWarp * TN + i];
+    }
+  }
+
+  <span class="tok-comment">// 3. 执行 Warptile 矩阵乘法：</span>
+  <span class="tok-comment">// 这一步与硬件 Warp 调度器完美契合，消除同一 Warp 内不同线程争夺同一 Bank 的冲突，</span>
+  <span class="tok-comment">// 并且具备极致的寄存器缓存局部性（Register Cache Locality）！</span>
+  <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> wSubRowIdx = <span class="tok-number">0</span>; wSubRowIdx &lt; WMITER; ++wSubRowIdx) {
+    <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> wSubColIdx = <span class="tok-number">0</span>; wSubColIdx &lt; WNITER; ++wSubColIdx) {
+      <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> resIdxM = <span class="tok-number">0</span>; resIdxM &lt; TM; ++resIdxM) {
+        <span class="tok-keyword">for</span> (<span class="tok-type">uint</span> resIdxN = <span class="tok-number">0</span>; resIdxN &lt; TN; ++resIdxN) {
+          threadResults[(wSubRowIdx * TM + resIdxM) * (WNITER * TN) +
+                        (wSubColIdx * TN) + resIdxN] +=
+              regM[wSubRowIdx * TM + resIdxM] * regN[wSubColIdx * TN + resIdxN];
+        }
+      }
+    }
+  }
+}</code></pre>
+</div>
+</div>
+<p><strong>最终战果：</strong>在 A100 上性能从 19.7 TFLOPs 冲顶至 <strong>21,779.3 GFLOPs（21.78 TFLOPs）</strong>，达到了官方 <strong>cuBLAS 的 93.7%</strong>！</p>
+</section>
+<!-- cuBLAS 领先奥秘 -->
+<section class="section-block" id="cublas-analysis">
+<h2 class="section-heading"><span class="heading-num">10.</span> cuBLAS 领先的深层奥秘与全尺寸 Benchmark</h2>
+<p>我们将优化后的 Kernel 10 与 cuBLAS 在不同矩阵尺寸（256 到 4096）下进行全面横向对比：</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Kernel 10 vs cuBLAS Across Matrix Sizes" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/55da74a57da8e880.png"/>
+</div>
+<figcaption><span class="fig-icon">图 24</span> 各尺寸下的性能对比曲线：在大矩阵下两者旗鼓相当，但在小尺寸下 cuBLAS 依然大幅领先</figcaption>
+</figure>
+<p>在大尺寸（2048、4096）下，我们的算力已经与 cuBLAS 仅差几个百分点。但在 256~512 的小尺寸下，cuBLAS 为何快得多？</p>
+<p><strong>cuBLAS 的制胜法宝：动态内核派发与 Split-K 技术！</strong><br/>
+          cuBLAS 编译出的二进制体积高达 500MB，里面内置了成百上千个针对不同矩阵形态特化的 Kernel。在运行时，cuBLAS 会根据输入尺寸动态调度最合适的内核。</p>
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Split-K Mechanism" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/3fb52bab88db4053.png"/>
+</div>
+<figcaption><span class="fig-icon">图 25</span> Split-K 机制：将 K 轴切分给多个 Block 并行累加，最后调用规约 Kernel 聚合结果</figcaption>
+</figure>
+<p>在尺寸为 256 时，如果只切分 M 和 N，生成的 Block 数量太少，连 GPU 的 84 个 SM 都填不满！cuBLAS 在此场景下启动 <strong>Split-K 策略</strong>：不仅切分 M、N，还把 K 维度切分到多个 Block 并行计算部分和，最后追加启动一个 <code>splitKreduce_kernel</code> 进行规约合并，从而在小尺寸下跑满 GPU 吞吐。</p>
+</section>
+<!-- Kernel 11 展望与总结 -->
+<section class="section-block" id="kernel-11">
+<h2 class="section-heading"><span class="heading-num">11.</span> 探索未尽与总结（Work in Progress &amp; Conclusion）</h2>
+<div class="callout-box info">
+<strong>未完工的 Kernel 11 探索方向：</strong>
+<ol style="margin-bottom:0;">
+<li><strong>软件流水线与双缓冲（Double Buffering）</strong>：借鉴 CUTLASS 模式，在当前步计算的同时，异步预取下一步的数据（涵盖 GMEM $\rightarrow$ SMEM 与 SMEM $\rightarrow$ 寄存器两级流水），彻底重叠计算与访存开销；</li>
+<li><strong>Hopper 架构新特性</strong>：利用 TMA（Tensor Memory Accelerator）硬件指令直接实现 GMEM 到 SMEM 的异步搬运，完全释放寄存器压力；</li>
+<li><strong>彻底消除 SMEM 内部 Bank Conflict</strong>：通过对 SMEM 进行特定的 Padding 和 Swizzle 数据排布，实现真正的零冲突。</li>
+</ol>
+</div>
+<h3 class="sub-heading">实战工程心得</h3>
+<p><strong>幂律分布无处不在</strong>：用两个周末写出的前 6 个 Kernel 就拿下了 80% 的峰值性能；而为了攻克后续的自动调优与 Warptiling，又花了整整 4 个周末才提升到 94%。越接近物理极限，收益递减越显著。</p>
+<p><strong>第一性原理可视化是 CUDA 优化的神器</strong>：一旦能够在草稿纸或 Excalidraw 上把数据流动与线程协作的几何拓扑画得一清二楚，写出高性能 CUDA 代码就变成了自然而然的水到渠成。</p>
+</section>
+</article>
+</main>
+</div>
+<!-- 划选工具浮条 -->
+
+<!-- 批注侧边抽屉 -->
+
+<!-- 批注输入弹窗 -->
+
+<!-- 图片放大 Lightbox -->
+<div id="img-lightbox" onclick="closeLightbox()">
+<img alt="Zoomed Image" decoding="async" id="lightbox-img" loading="lazy" src=""/>
+</div>
+<div id="toast-msg">提示信息</div>
+<!-- 交互脚本 -->
+
+<script defer="True" src="/translations/reader.js"></script><script defer="True" src="/vendor/katex/katex.min.js"></script><script defer="True" src="/vendor/katex/contrib/auto-render.min.js"></script><script defer="True" src="/translations/math.js"></script></body>
+</html>

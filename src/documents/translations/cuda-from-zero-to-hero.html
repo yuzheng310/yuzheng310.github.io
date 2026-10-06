@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CUDA 从零到精通 #1 | 中文翻译</title>
+
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Noto+Sans+SC:wght@300;400;500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style>
+    :root {
+      --bg-primary: #000000;
+      --bg-secondary: #16181c;
+      --bg-card: #0f1419;
+      --border-color: #2f3336;
+      --text-primary: #e7e9ea;
+      --text-secondary: #71767b;
+      --text-muted: #536471;
+      --accent-color: #1d9bf0;
+      --code-bg: #15181c;
+      --quote-border: #1d9bf0;
+      --quote-bg: rgba(29, 155, 240, 0.05);
+    }
+    html.light {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f7f9f9;
+      --bg-card: #f7f9f9;
+      --border-color: #eff3f4;
+      --text-primary: #0f1419;
+      --text-secondary: #536471;
+      --text-muted: #8b98a5;
+      --accent-color: #1d9bf0;
+      --code-bg: #f8fafc;
+      --quote-border: #1d9bf0;
+      --quote-bg: rgba(29, 155, 240, 0.04);
+    }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans SC", sans-serif;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      line-height: 1.75;
+      letter-spacing: -0.01em;
+    }
+    code, pre {
+      font-family: "JetBrains Mono", SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    }
+    .x-article-content p {
+      margin-bottom: 1.25rem;
+      font-size: 1.0625rem;
+      line-height: 1.8;
+      color: var(--text-primary);
+    }
+    .x-article-content h3 {
+      font-size: 1.45rem;
+      font-weight: 800;
+      margin-top: 2.5rem;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+    .x-blockquote {
+      border-left: 3px solid var(--quote-border);
+      background-color: var(--quote-bg);
+      padding: 0.875rem 1.25rem;
+      margin: 1.5rem 0;
+      border-radius: 0 0.5rem 0.5rem 0;
+      color: var(--text-primary);
+      font-size: 0.98rem;
+    }
+    .code-box {
+      background-color: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      margin: 1.5rem 0;
+      overflow: hidden;
+    }
+    .img-zoomable {
+      transition: transform 0.25s ease, filter 0.25s ease;
+      cursor: zoom-in;
+    }
+    .img-zoomable:hover {
+      filter: brightness(1.03);
+    }
+    /* Lightbox Modal */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.92);
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      cursor: zoom-out;
+    }
+    #lightbox.active {
+      display: flex;
+    }
+    #lightbox img {
+      max-width: 95vw;
+      max-height: 92vh;
+      object-contain: contain;
+      border-radius: 0.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+<link href="/translations/cuda-from-zero-to-hero/tailwind.css" rel="stylesheet"/><link href="/vendor/katex/katex.min.css" rel="stylesheet"/></head>
+<body class="min-h-screen flex flex-col items-center">
+<!-- Lightbox Modal -->
+<div id="lightbox" onclick="closeLightbox()">
+<img alt="Enlarged view" decoding="async" id="lightbox-img" loading="lazy" src=""/>
+</div>
+<!-- Top Sticky Navigation Bar -->
+<header class="sticky top-0 z-40 w-full border-b backdrop-blur-md transition-colors" style="border-color: var(--border-color); background-color: rgba(var(--bg-primary-rgb, 0, 0, 0), 0.85);">
+<div class="max-w-[700px] mx-auto px-4 h-14 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<a class="p-2 -ml-2 rounded-full hover:bg-neutral-800/40 text-current transition-colors" href="https://x.com" target="_blank">
+<svg aria-hidden="true" class="w-5 h-5 fill-current" viewbox="0 0 24 24">
+<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+</svg>
+</a>
+<div class="flex flex-col">
+<span class="text-xs uppercase tracking-wider font-semibold" style="color: var(--text-secondary)">X 深度专栏 · 技术长文</span>
+<span class="text-sm font-bold truncate max-w-[280px] sm:max-w-md">CUDA 从零到精通 #1</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-full border text-xs font-semibold transition-all flex items-center gap-1.5" id="themeToggle" onclick="toggleTheme()" style="border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-card)">
+<span id="themeIcon">☀️</span>
+<span id="themeText">浅色模式</span>
+</button>
+<a class="px-3.5 py-1.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-bold transition-all flex items-center gap-1" href="https://x.com/goyal__pramod/status/2103565642800431533" rel="noopener noreferrer" target="_blank">
+<span>原推文</span>
+<svg class="w-3 h-3 fill-current" viewbox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
+</a>
+</div>
+</div>
+</header>
+<!-- Main Article Container -->
+<main class="w-full max-w-[700px] px-4 py-6">
+<!-- Tweet Context / Author Header -->
+<section class="border-b pb-5 mb-6" style="border-color: var(--border-color);">
+<div class="flex items-start justify-between gap-3 mb-3">
+<div class="flex items-center gap-3">
+<a class="block shrink-0" href="https://x.com/goyal__pramod" target="_blank">
+<img alt="Pramod Goyal" class="w-11 h-11 rounded-full object-cover border" decoding="async" loading="lazy" src="/translations/images/f91fb165c783f597.jpg" style="border-color: var(--border-color);"/>
+</a>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5 flex-wrap">
+<a class="font-bold text-base hover:underline leading-tight" href="https://x.com/goyal__pramod" style="color: var(--text-primary);" target="_blank">Pramod Goyal</a>
+<svg class="w-4 h-4 text-[#1d9bf0] fill-current" viewbox="0 0 24 24">
+<path d="M12 1.75c1.4 0 2.62.87 3.34 2.19 1.44-.43 2.92-.17 3.91.81s1.24 2.47.81 3.91c1.32.72 2.2 1.94 2.2 3.34s-.88 2.62-2.2 3.34c.43 1.44.18 2.92-.81 3.9-.99 1-2.47 1.25-3.91.82-.72 1.32-1.94 2.19-3.34 2.19s-2.62-.87-3.34-2.2c-1.44.44-2.92.18-3.9-.8-1-.99-1.24-2.47-.82-3.91-1.32-.72-2.19-1.95-2.19-3.34 0-1.4.87-2.62 2.2-3.34-.43-1.44-.18-2.92.8-3.9.99-1 2.47-1.25 3.91-.82.72-1.32 1.95-2.19 3.34-2.19M10.45 13.3l-2.23-2.25-1.42 1.4 3.7 3.75 6.24-6.77-1.47-1.36z"></path>
+</svg>
+</div>
+<div class="flex items-center gap-1 text-xs" style="color: var(--text-secondary);">
+<span>@goyal__pramod</span>
+<span>·</span>
+<time datetime="2026-09-25T19:21:46.000Z">2026年9月25日</time>
+</div>
+</div>
+</div>
+<a class="px-4 py-1.5 rounded-full border text-xs font-bold hover:bg-neutral-800/20 transition-all" href="https://x.com/goyal__pramod" style="border-color: var(--border-color); color: var(--text-primary);" target="_blank">关注</a>
+</div>
+<!-- Tweet text intro -->
+<div class="text-[0.95rem] leading-relaxed mb-4 pl-14 font-normal" style="color: var(--text-primary);">
+<p>花时间把这段时间学习 GPU 和 CUDA 的心得全部整理记录了下来。欢迎大家来看看！👇</p>
+<p class="text-xs mt-1" style="color: var(--text-secondary);">（原推正文：<em>Took the time and wrote down everything I have been learning about GPUs and CUDA. Consider checking it out!</em>）</p>
+</div>
+<!-- Article Hero Card -->
+<div class="rounded-2xl overflow-hidden border transition-all" style="border-color: var(--border-color); background-color: var(--bg-card);">
+<div class="relative w-full aspect-[5/2] overflow-hidden bg-neutral-900">
+<img alt="CUDA from zero to hero cover" class="w-full h-full object-cover img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/9c8612e7d31e2ffc.webp"/>
+</div>
+<div class="p-5">
+<div class="flex items-center gap-2 mb-2 text-xs font-medium" style="color: var(--text-secondary);">
+<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#1d9bf0]/15 text-[#1d9bf0]">专栏文章</span>
+<span>·</span>
+<span>约 8 分钟阅读</span>
+<span>·</span>
+<span>1,651 词</span>
+</div>
+<h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2" style="color: var(--text-primary);">
+            CUDA 从零到精通 #1
+          </h1>
+<p class="text-sm line-clamp-2" style="color: var(--text-secondary);">
+            这是我学习 CUDA 过程中记录的笔记；在本文中，我将尝试拆解各个概念，并以最符合我理解逻辑的方式呈现出来……
+          </p>
+</div>
+</div>
+<!-- Engagement Stats Bar -->
+<div class="flex items-center justify-between text-xs mt-4 pt-3 border-t px-2" style="border-color: var(--border-color); color: var(--text-secondary);">
+<div class="flex items-center gap-5 sm:gap-7">
+<span class="flex items-center gap-1.5 hover:text-[#1d9bf0] cursor-pointer transition-colors">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z"></path></svg>
+<span class="font-medium">6 回复</span>
+</span>
+<span class="flex items-center gap-1.5 hover:text-green-500 cursor-pointer transition-colors">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"></path></svg>
+<span class="font-medium">37 转发</span>
+</span>
+<span class="flex items-center gap-1.5 hover:text-rose-500 cursor-pointer transition-colors">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91zm4.187 7.69c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"></path></svg>
+<span class="font-medium">342 赞</span>
+</span>
+<span class="flex items-center gap-1.5 hover:text-[#1d9bf0] cursor-pointer transition-colors">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5zM6.5 4c-.276 0-.5.22-.5.5v14.56l6-4.29 6 4.29V4.5c0-.28-.224-.5-.5-.5h-11z"></path></svg>
+<span class="font-medium">552 书签</span>
+</span>
+</div>
+<span class="hover:text-[#1d9bf0] cursor-pointer transition-colors">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M12 2.59l5.7 5.7-1.41 1.42L13 6.41V16h-2V6.41l-3.3 3.3-1.41-1.42L12 2.59zM21 15l-.02 3.51c0 1.38-1.12 2.49-2.5 2.49H5.5C4.11 21 3 19.88 3 18.5V15h2v3.5c0 .28.22.5.5.5h12.98c.28 0 .5-.22.5-.5L19 15h2z"></path></svg>
+</span>
+</div>
+</section>
+<!-- Translated Article Content -->
+<article class="x-article-content">
+<!-- Section: Intro -->
+<p>这是我学习 CUDA 过程中记录的笔记；在本文中，我将尝试拆解各个概念，并以最符合我理解逻辑的方式呈现出来。我喜欢从底层和内部原理上彻底搞懂事物，因此我会尽量讲得足够详尽。</p>
+<p>我认为掌握它的最佳途径是亲自动手编写 CUDA 核函数（Kernel），并在实践中不断迭代精进。</p>
+<p>我希望这个系列能够足够全面、详尽，带领任何初学者一路进阶到业界最前沿（SOTA）水平。随着我的持续学习与成长，我也会在文中分享相关的博客、书籍与视频资源。</p>
+<blockquote class="x-blockquote">
+<strong>注：</strong>这是一篇动态演进的文章，随着我对技术理解的不断深入，我会持续增补（偶尔也会删改）相关内容。
+      </blockquote>
+<p>现在，让我们从……<strong>了解硬件</strong>开始。在学习 CUDA 时请听我一句忠告：了解你所使用的 GPU 及其工作原理，与理解代码本身同等重要。因为它们两者是高度紧密耦合的。</p>
+<!-- Section: Understanding the GPU -->
+<h3>理解 GPU 硬件 (Understanding the GPU)</h3>
+<p>这时自然会产生一个显而易见的问题：我们为什么需要 GPU？光有 CPU 难道还不够吗？难道不能把它们合并在一起吗*？为什么非要搞一个独立的计算模块？</p>
+<p class="text-sm opacity-90">
+        *有趣的是，苹果（Apple）恰恰就是这么做的；你可以在<a class="text-[#1d9bf0] underline font-medium" href="https://discussions.apple.com/thread/255191914?sortBy=rank" rel="noopener noreferrer" target="_blank">这里</a>了解更多信息（我记得曾看过一个非常精彩的深度科普视频，可惜一时想不起名字了。如果你知道我说的是哪个视频，欢迎随时联系我！）。
+      </p>
+<p>这是 CPU 的大致架构：</p>
+<!-- Figure 1: CPU -->
+<figure class="my-6">
+<div class="rounded-xl overflow-hidden border bg-neutral-950/40 p-1 flex justify-center" style="border-color: var(--border-color);">
+<img alt="CPU 架构简图" class="w-full max-h-[560px] object-contain rounded-lg img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/76456e11e5f7e010.jpg"/>
+</div>
+<figcaption class="mt-2 text-center text-xs" style="color: var(--text-secondary);">灵感源自《PMPP》（大规模并行处理器编程，Programming Massively Parallel Processors）</figcaption>
+</figure>
+<p>其中的各个组成部分包括：</p>
+<div class="space-y-2 mb-5 pl-2">
+<p class="mb-1"><strong>DRAM</strong> ➔ 动态随机存取内存（Dynamic Random Access Memory），数据在进入计算单元之前存放于此。</p>
+<p class="mb-1"><strong>CACHE</strong> ➔ 缓存（Cache），用于暂存运算过程中频繁访问与即时产生的计算数值的临时存储空间。</p>
+<p class="mb-1"><strong>CONTROL</strong> ➔ 控制单元（Control），负责决定将计算任务分发到何处、将数据存放在哪里。它是整个芯片的控制中心！</p>
+<p class="mb-1"><strong>ALU</strong> ➔ 算术逻辑单元（Arithmetic Logic Unit），实际负责执行算术与逻辑运算的核心部件。</p>
+</div>
+<blockquote class="x-blockquote">
+<strong>注：</strong>这只是对 CPU 架构（以及稍后将介绍的 GPU）的一种高度简化概括，目的是帮助你建立对核心组件及其工作机制的直观认知。随着文章的推进，我们将逐步把这些顶层组件拆解为具体的细分部件，深入探讨其内在运作原理！
+      </blockquote>
+<p>如果你想要串行地处理任务（即一个接一个地执行），那么这种架构非常出色。在现代 CPU 中，我们甚至拥有多个核心，因此也可以并行执行多项计算任务（多线程、并行与异步是完全不同的概念，建议<a class="text-[#1d9bf0] underline font-medium" href="https://stackoverflow.com/questions/27435284/multiprocessing-vs-multithreading-vs-asyncio" rel="noopener noreferrer" target="_blank">阅读这篇讨论</a>来理解它们之间的区别）。</p>
+<p>现在，试想一下矩阵乘法——这也是绝大多数 AI 模型的核心运算。如果你仔细分析这种运算，就会发现它天然是可以高度并行的：输出矩阵中的每一个数值都可以完全独立于其他数值进行计算，你所需要的仅仅是对应第 i 行与第 j 列的行向量与列向量。</p>
+<!-- Figure 2: MatMul Parallelism -->
+<figure class="my-6">
+<div class="rounded-xl overflow-hidden border bg-neutral-950/40 p-1 flex justify-center" style="border-color: var(--border-color);">
+<img alt="矩阵乘法的并行特性示意图" class="w-full max-h-[560px] object-contain rounded-lg img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/6ee9c97bc151708f.jpg"/>
+</div>
+</figure>
+<p>而为了实现这种大规模并发计算，相比 CPU 我们需要做出怎样的改变？……答案其实并不难猜：<strong>更多的 ALU！！！</strong> 因为我们希望尽快同时算出所有这些数值。这就是为什么通常 GPU 的架构看起来是这个样子的：</p>
+<!-- Figure 3: GPU ALU Grid -->
+<figure class="my-6">
+<div class="rounded-xl overflow-hidden border bg-neutral-950/40 p-1 flex justify-center" style="border-color: var(--border-color);">
+<img alt="GPU 架构简图：大量的 ALU 计算阵列" class="w-full max-h-[560px] object-contain rounded-lg img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/bb9b7741fc91a738.jpg"/>
+</div>
+</figure>
+<blockquote class="x-blockquote">
+<strong>注：</strong>再次强调，这里的 GPU 架构图也是一个简化示意。但它足以清晰传达核心设计理念。随着我们讨论的深入，我们会在现有知识的基础上逐步补充，架构图也会变得更加丰富和细致！
+      </blockquote>
+<p>正如你在上图中所见，GPU 拥有数量多得多的 ALU。接下来让我们通过各个组成部件的名称来更深入地理解它们。由于本文的核心在于理解 GPU 与 CUDA，因此相比上面的 CPU 部分，我们将对这些部件进行更加详尽的探讨。</p>
+<!-- Figure 4: Memory Hierarchy Pyramid -->
+<figure class="my-6">
+<div class="rounded-xl overflow-hidden border bg-neutral-950/40 p-1 flex justify-center" style="border-color: var(--border-color);">
+<img alt="GPU 存储层次结构：寄存器、共享内存、L2 缓存、全局内存" class="w-full max-h-[640px] object-contain rounded-lg img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/4c9fe17072c26d0b.jpg"/>
+</div>
+</figure>
+<p class="text-xs text-center -mt-3 mb-4" style="color: var(--text-secondary);">
+        图片灵感来源于该<a class="text-[#1d9bf0] underline font-medium" href="https://damek.github.io/random/basic-facts-about-gpus/#fn:12" rel="noopener noreferrer" target="_blank">技术博客</a>
+</p>
+<p>我们需要理解的最基础事实就是：<strong>存储容量越大，访问速度越慢；反之亦然。</strong>（目前我还没有完全搞懂其背后的物理/硬件深层原因，不过等我彻底搞明白后，我一定会写出来！）。</p>
+<p><strong>全局内存（Global Memory）</strong>即显存（VRAM），也就是厂商宣传标称的 GPU 存储容量。一个 <strong>SM（流式多处理器，Streaming Multiprocessor）</strong> 内部包含多个部件，例如 Tensor Cores、线程执行单元、Warp 调度器（Warp Scheduler）等等众多组件。</p>
+<p>对于本文而言，我们暂时不必钻得过深！现在我们先聚焦于最核心的几个思想。最关键的一点在于理解：<strong>SM 内部驻留有线程块（Blocks）；这些块内部包含多个线程（Threads）；同一个块内的线程【只能】访问该块对应的共享内存（Shared Memory）。</strong></p>
+<p>所有的线程都按 32 个线程一组组织为一个 <strong>Warp（线程束）</strong>！本质上，一个 Warp 会同时并发执行其中的所有线程。</p>
+<p class="text-sm italic" style="color: var(--text-secondary);">（如果现在觉得有些难以理解也不用担心，随着我们的继续深入，这些概念会变得越来越清晰！）</p>
+<!-- Figure 5: SM Block / Thread hierarchy -->
+<figure class="my-6">
+<div class="rounded-xl overflow-hidden border bg-neutral-950/40 p-1 flex justify-center" style="border-color: var(--border-color);">
+<img alt="SM 内部组织示意图" class="w-full max-h-[500px] object-contain rounded-lg img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/f9b5991d3dde3d98.jpg"/>
+</div>
+</figure>
+<p>将数据从全局内存（Global Memory）传输到 SM 是一项开销极大且相对低效的操作，<a class="text-[#1d9bf0] underline font-medium" href="https://horace.io/" rel="noopener noreferrer" target="_blank">Horace He</a> 写过一篇非常精彩的博客<a class="text-[#1d9bf0] underline font-medium" href="https://horace.io/brrr_intro.html" rel="noopener noreferrer" target="_blank">《Making GPUs go Brrr》</a>，对此作了极为出色的阐述，非常推荐一读。因此在理想情况下，我们希望把数据一次性加载到 SM 中，在 SM 本地完成全部必要的计算，并在所有计算全部完成后，再把结果统一写回全局内存。</p>
+<!-- Figure 6: SM Simplification -->
+<figure class="my-6">
+<div class="rounded-xl overflow-hidden border bg-neutral-950/40 p-1 flex justify-center" style="border-color: var(--border-color);">
+<img alt="SM 简化计算与存储模型" class="w-full max-h-[560px] object-contain rounded-lg img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/fabc9e33f94e8677.jpg"/>
+</div>
+</figure>
+<p>上图是 SM 结构的一个简化示意图。到目前为止，我们已经对为什么需要 GPU 以及 GPU 的大体形态有了很好的宏观理解！当我们后续深入到更硬核的内容时，这些基础知识将发挥巨大的作用。</p>
+<!-- Section: Understanding CUDA -->
+<h3>理解 CUDA 软件模型 (Understanding CUDA)</h3>
+<p>现在，我们可以开始探究 CUDA 内部的运作机制了。</p>
+<p>在 CUDA 中，我们有 <strong>Grid（网格）</strong>，Grid 内部包含若干个 <strong>Block（线程块）</strong>，而 Block 内部则包含若干个 <strong>Thread（线程）</strong>。如下图所示，它们可以按照三维（3D）的形式进行编排，但在绝大多数实际工程中，大家通常采用二维（2D）布局，因此我们在大部分时间里也会使用 2D 布局。</p>
+<p>因为对于初学者来说一维（1D）模型更直观易懂，所以本篇中我将先采用 1D 模型进行讲解。多维布局的内容我们将在下一篇文章中正式展开。</p>
+<!-- Figure 7: CUDA Hierarchy -->
+<figure class="my-6">
+<div class="rounded-xl overflow-hidden border bg-neutral-950/40 p-1 flex justify-center" style="border-color: var(--border-color);">
+<img alt="CUDA 软硬件层次结构图：Host、Device、Grid、Block、Thread" class="w-full max-h-[600px] object-contain rounded-lg img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/75455b3519411318.jpg"/>
+</div>
+</figure>
+<p>对于刚入门的人来说，上图的信息量可能有些大，但让我们逐个组件拆解剖析：</p>
+<p>我们拥有一个 <strong>Host（主机端）</strong>，我们在其上编写并调用将在 <strong>Device（设备端）</strong> 上运行的 CUDA 核函数（Kernel）。简而言之：<strong>Host 就是 CPU，Kernel 本质上就是一个函数，而 Device 就是 GPU。</strong></p>
+<p>在启动核函数时，我们定义了网格中的线程块数量（Grid 中的 Block 数），以及每个线程块中的线程数量（Block 中的 Thread 数）。</p>
+<p>为了在 Block 和 Grid 之间进行遍历寻址，我们拥有 <strong>Dimension（维度尺寸）</strong> 和 <strong>Index（索引位置）</strong> 这两个概念。（请仔细辨析，这两者截然不同：Index 帮助你在某个方向上定位移动，而 Dimension 则定义了该方向的总跨度/长度）。</p>
+<!-- Section: Simple MatMul -->
+<h3>编写简单的矩阵乘法 (Simple MatMul)</h3>
+<p>现在，让我们先用 Python 编写一段简单的 CPU 矩阵乘法代码，然后再利用我们刚才学到的知识来编写对应的 CUDA 核函数！</p>
+<!-- Code Box 1: Python MatMul -->
+<div class="code-box">
+<div class="flex items-center justify-between px-4 py-2 border-b text-xs font-semibold" style="border-color: var(--border-color); background-color: var(--bg-card); color: var(--text-secondary);">
+<span class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<span>Python (CPU 参考实现)</span>
+</span>
+<button class="hover:text-[#1d9bf0] transition-colors" onclick="copyCode(this)">复制</button>
+</div>
+<pre class="p-4 text-sm leading-relaxed overflow-x-auto text-emerald-400"><code>import numpy as np
+
+a = 5
+b = 10
+c = 5
+
+GEMM_1 = np.random.rand(a, b)
+GEMM_2 = np.random.rand(b, c)
+
+ANS_triple = np.zeros((a, c))
+
+for i in range(a):
+    for j in range(c):      
+        for k in range(b):
+            ANS_triple[i, j] += GEMM_1[i, k] * GEMM_2[k, j]
+
+# 两者结果应该与 numpy 内置的 matmul 完全一致
+assert np.allclose(ANS_triple, GEMM_1 @ GEMM_2)</code></pre>
+</div>
+<p>在编写 CUDA 代码时，我们需要时刻铭记的最朴素理念是：<strong>我们拥有成千上万个线程，它们能够并发执行，而我们要做的就是让它们齐头并进地同时运转起来。</strong></p>
+<p>你能写出的<strong>最糟糕</strong>的矩阵乘法如下所示：</p>
+<!-- Code Box 2: Worst CUDA MatMul -->
+<div class="code-box">
+<div class="flex items-center justify-between px-4 py-2 border-b text-xs font-semibold" style="border-color: var(--border-color); background-color: var(--bg-card); color: var(--text-secondary);">
+<span class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+<span>CUDA C++ (极度低效的反例)</span>
+</span>
+<button class="hover:text-[#1d9bf0] transition-colors" onclick="copyCode(this)">复制</button>
+</div>
+<pre class="p-4 text-sm leading-relaxed overflow-x-auto text-rose-300"><code>// A -&gt; M X K 
+// B -&gt; K X N
+// output -&gt; M X N
+
+__global__ void super_bad_matmul_kernel(const float* A, const float* B, float* output, int M, int N, int K){
+   float temp_val = 0;
+
+   for(int i = 0; i &lt; M; i++){
+      for(int j = 0; j &lt; N; j++){
+         for(int k = 0; k &lt; K; k++){
+            temp_val += A[i * K + k] * B[K * k + j];
+         }
+         output[i * N + j] = temp_val;
+      }
+   }
+}
+
+extern "C" void solve(const float* A, const float* B, float* output, int M, int N, int K) {
+   // 注意：这里只启动了 1 个 Block、1 个 Thread！
+   super_bad_matmul_kernel&lt;&lt;&lt;1, 1&gt;&gt;&gt;(A, B, output, M, N, K);
+}</code></pre>
+</div>
+<p>上面的代码糟糕透顶，根本原因在于我们完全没有利用好代码可以高度并行的特性，也没有让多个线程各自计算一个独立的输出值。请注意，<code>solve</code> 函数仅仅启动了单个线程（<code>&lt;&lt;&lt;1, 1&gt;&gt;&gt;</code>）。因此，即便这段代码运行在 GPU 上，那区区一个线程依然要独自一人跑完整个三重循环，行为与 CPU 版本如出一辙——我们根本没有享受到 GPU 的任何并行红利。</p>
+<p>接下来，让我们编写一个朴素但正确的 CUDA 解决方案（Naive Matmul），随后我将详细拆解每个部分的作用以及它为何要这样设计！</p>
+<!-- Code Box 3: Naive CUDA MatMul -->
+<div class="code-box">
+<div class="flex items-center justify-between px-4 py-2 border-b text-xs font-semibold" style="border-color: var(--border-color); background-color: var(--bg-card); color: var(--text-secondary);">
+<span class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-[#1d9bf0]"></span>
+<span>CUDA C++ (标准入门朴素实现)</span>
+</span>
+<button class="hover:text-[#1d9bf0] transition-colors" onclick="copyCode(this)">复制</button>
+</div>
+<pre class="p-4 text-sm leading-relaxed overflow-x-auto text-sky-300"><code>// A -&gt; M X K 
+// B -&gt; K X N
+// output -&gt; M X N
+
+__global__ void naive_matmul(const float* A, const float* B, float* output, int M, int N, int K){
+   // 计算当前线程的全局唯一索引
+   int gid = threadIdx.x + blockDim.x * blockIdx.x;
+   
+   // 边界越界保护检查
+   if(gid &gt;= M * N) return;
+
+   int row = gid / N;
+   int col = gid % N;
+
+   float temp_val = 0;
+   for(int i = 0; i &lt; K; i++){
+      temp_val += A[row * K + i] * B[i * N + col];
+   }
+
+   output[gid] = temp_val;
+}
+
+extern "C" void solve(const float* A, const float* B, float* output, int M, int N, int K) {
+   int threadsPerBlock = 256;
+   // 向上取整计算需要的 Block 数量
+   int blocksPerGrid = (M * N + threadsPerBlock - 1) / threadsPerBlock;
+ 
+   naive_matmul&lt;&lt;&lt;blocksPerGrid, threadsPerBlock&gt;&gt;&gt;(A, B, output, M, N, K);
+}</code></pre>
+</div>
+<p>虽然上面的实现算不上极致优化的高性能版本，但它已经展现出了 CUDA 并行的真正价值。在这段代码中，涉及到了一个我们此前尚未提及、却处于 CUDA 核心地位的关键概念：<strong>数据在物理内存中的实际排布是一维的，并且是以行优先（Row-Major）的格式连续存储的。</strong></p>
+<p>我们知道输出矩阵的形状是 $M \times N$。但是在计算机内存物理层面并不存在真正的二维结构，只有一维连续地址空间。因此，并不是真的在硬件上排布成 $M \times N$ 的网格，而是将 $M$ 行、每行 $N$ 个元素紧密地首尾相连堆叠在一维内存中，具体呈现如下图所示：</p>
+<!-- Figure 8: Row-Major Memory Layout -->
+<figure class="my-6">
+<div class="rounded-xl overflow-hidden border bg-neutral-950/40 p-1 flex justify-center" style="border-color: var(--border-color);">
+<img alt="二维矩阵在物理内存中的一维行优先（Row-Major）排布展开" class="w-full max-h-[500px] object-contain rounded-lg img-zoomable" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/3fcc6b3538c9481d.jpg"/>
+</div>
+</figure>
+<p class="text-sm italic" style="color: var(--text-secondary);">（对于三维数据，你也可以类比想象出类似的展开形式）</p>
+<p>因此，我们来拆解一下 <code>gid</code>（我习惯称之为全局 ID，即 Global ID；而 <code>tid</code> 即线程 ID，代表线程在当前线程块内部的序号，既然我们定义了每个块的大小为 256，那么 <code>tid</code> 就绝不会超过这个上限）。它由 <code>threadIdx</code>、<code>blockDim</code> 和 <code>blockIdx</code> 共同计算得出。其中 <code>Idx</code> 代表索引（Index），<code>dim</code> 代表维度大小（Dimension）。</p>
+<p>直观地可视化并理解其运算过程至关重要：<code>threadIdx</code> 告诉你当前线程在自己所属线程块中的相对偏移量；而将线程块索引（<code>blockIdx</code>）乘以线程块维度大小（<code>blockDim</code>），则能准确算出在当前线程块之前，已经排了多少个线程。</p>
+<p>理解这一点的绝佳方法是<strong>逆向倒推</strong>：我们希望每个线程独立计算输出矩阵中的一个元素值，因此我们需要 $M \times N$ 个线程。但直接一次性启动一个无限大或者任意大小的单一块是不现实的。</p>
+<p>因此，我们设定每个块容纳 256 个线程（<code>threadsPerBlock = 256</code>），然后在此基础上反推需要启动多少个线程块——这也正是向上取整（Ceiling）公式的由来：</p>
+<div class="p-3 my-3 rounded-lg border text-center font-mono text-sm sm:text-base font-bold text-[#1d9bf0]" style="border-color: var(--border-color); background-color: var(--bg-card);">
+        blocksPerGrid = (M * N + threadsPerBlock - 1) / threadsPerBlock;
+      </div>
+<p>这个公式能够确保我们分配出足够数量的线程块以及足够多的线程来承载全部计算任务。然而，正因为向上取整的存在，启动的总线程数可能会略微超出 $M \times N$ 个。这也正是我们在核函数中加入越界检查判断的原因：</p>
+<div class="p-3 my-3 rounded-lg border text-center font-mono text-sm sm:text-base font-bold text-rose-400" style="border-color: var(--border-color); background-color: var(--bg-card);">
+        if(gid &gt;= M * N) return;
+      </div>
+<p>建议多读几遍这一段，尝试用你自己的语言和逻辑去推导一遍，你一定能豁然开朗！</p>
+<!-- Section: Next Steps -->
+<h3>接下来该何去何从？ (Where do we go from here?)</h3>
+<p>如果你想检验并巩固刚才学到的知识，我强烈推荐你去体验以下两个实战练习资源：</p>
+<ul class="list-disc pl-6 mb-5 space-y-2 font-medium">
+<li>
+<a class="text-[#1d9bf0] hover:underline" href="https://github.com/srush/gpu-puzzles" rel="noopener noreferrer" target="_blank">GPU Puzzles (Sasha Rush 制作的交互式 GPU 谜题)</a>
+</li>
+<li>
+<a class="text-[#1d9bf0] hover:underline" href="https://leetgpu.com/" rel="noopener noreferrer" target="_blank">LeetGPU (专为 GPU 与 CUDA 编程打造的刷题平台)</a>
+</li>
+</ul>
+<p>本篇文章对很多核心概念进行了高度的提炼与简化。在下一篇文章中，我们将进一步探讨 CUDA 代码中的常见性能瓶颈究竟是什么、我们该如何精准定位它们，以及如何有针对性地实施性能优化。同时，我们也会深入学习与之对应的 GPU 硬件细节。</p>
+<p>最后，如果你已经一口气读到了这里，那我就权当你是真的很喜欢这篇文章了。既然如此，此情此刻你我便已经是挚友了——而作为朋友，不妨顺手将这篇文章分享给你身边的其他开发者朋友们，这也是对我最大的帮助与支持！</p>
+</article>
+<!-- Footer / Share Card -->
+<footer class="mt-12 pt-8 border-t" style="border-color: var(--border-color);">
+<div class="rounded-xl p-5 border text-center flex flex-col items-center gap-3" style="border-color: var(--border-color); background-color: var(--bg-card);">
+<p class="text-sm font-semibold" style="color: var(--text-primary);">喜欢这篇译文吗？分享给更多对 GPU 与 CUDA 感兴趣的朋友！</p>
+<div class="flex items-center gap-3">
+<a class="px-4 py-2 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-bold transition-all" href="https://x.com/intent/tweet?text=推荐阅读：《CUDA 从零到精通 #1》中文翻译&amp;url=https://x.com/goyal__pramod/status/2103565642800431533" target="_blank">
+            在 X 上分享
+          </a>
+<a class="px-4 py-2 rounded-full border text-xs font-bold hover:bg-neutral-800/20 transition-all" href="https://x.com/goyal__pramod" style="border-color: var(--border-color); color: var(--text-primary);" target="_blank">
+            关注原作者 @goyal__pramod
+          </a>
+</div>
+<p class="text-[11px] mt-2" style="color: var(--text-muted);">
+          原文由 Pramod Goyal 发表于 X (Twitter) · 本页面由 AI 助手完成高保真中文排版翻译
+        </p>
+</div>
+</footer>
+</main>
+<script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const themeText = document.getElementById('themeText');
+      const themeIcon = document.getElementById('themeIcon');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        themeText.textContent = '深色模式';
+        themeIcon.textContent = '🌙';
+      } else {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        themeText.textContent = '浅色模式';
+        themeIcon.textContent = '☀️';
+      }
+    }
+
+    function openLightbox(src) {
+      const lightbox = document.getElementById('lightbox');
+      const lightboxImg = document.getElementById('lightbox-img');
+      lightboxImg.src = src;
+      lightbox.classList.add('active');
+    }
+
+    function closeLightbox() {
+      const lightbox = document.getElementById('lightbox');
+      lightbox.classList.remove('active');
+    }
+
+    function copyCode(btn) {
+      const pre = btn.closest('.code-box').querySelector('code');
+      navigator.clipboard.writeText(pre.innerText).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '已复制!';
+        btn.style.color = '#10b981';
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
+    // Keyboard support for ESC to close lightbox
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  </script>
+<script defer="True" src="/vendor/katex/katex.min.js"></script><script defer="True" src="/vendor/katex/contrib/auto-render.min.js"></script><script defer="True" src="/translations/math.js"></script></body>
+</html>

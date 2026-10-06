@@ -2,6 +2,7 @@
 title: 深入理解 vLLM：高吞吐大语言模型推理系统架构剖析
 description: 从 PagedAttention、连续批处理、前缀缓存、投机解码等核心机制，到多 GPU 动态服务架构的全景剖析。
 date: 2026-09-15
+tags: ["翻译", "vLLM", "大模型推理", "KV Cache"]
 repoURL: https://github.com/vllm-project/vllm
 ---
 

@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mooncake 论文精读与中文全解：以 KVCache 为中心的大模型解耦推理架构</title>
+<style>
+    :root {
+      --primary: #1f5b53;
+      --primary-light: #2d7a70;
+      --primary-subtle: #eef6f4;
+      --ink: #192624;
+      --text-muted: #556663;
+      --bg-page: #f8faf9;
+      --bg-card: #ffffff;
+      --border-line: #d8e6e2;
+      --accent-coral: #d9534f;
+      --accent-blue: #2563eb;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--ink);
+      background-color: var(--bg-page);
+      line-height: 1.75;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .layout {
+      display: flex;
+      max-width: 1440px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 290px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 32px 20px;
+      background: #ffffff;
+      border-right: 1px solid var(--border-line);
+    }
+
+    .sidebar-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--primary-subtle);
+    }
+
+    .sidebar-nav ul {
+      list-style: none;
+    }
+
+    .sidebar-nav li {
+      margin-bottom: 8px;
+    }
+
+    .sidebar-nav a {
+      display: block;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      line-height: 1.4;
+    }
+
+    .sidebar-nav a:hover {
+      color: var(--primary);
+      background: var(--primary-subtle);
+      transform: translateX(3px);
+    }
+
+    /* Main Content */
+    .content {
+      flex: 1;
+      padding: 48px 56px 80px;
+      max-width: 1050px;
+      background: #ffffff;
+      margin: 0 auto;
+      box-shadow: 0 0 20px rgba(0,0,0,0.02);
+    }
+
+    header.doc-header {
+      margin-bottom: 40px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border-line);
+    }
+
+    .tag-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary-subtle);
+      color: var(--primary);
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+
+    h1.doc-title {
+      font-size: 32px;
+      font-weight: 900;
+      line-height: 1.3;
+      color: var(--ink);
+      margin-bottom: 12px;
+    }
+
+    .meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .meta-bar span b {
+      color: var(--ink);
+    }
+
+    /* Headings */
+    h2 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-top: 48px;
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid var(--border-line);
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 750;
+      color: var(--ink);
+      margin-top: 28px;
+      margin-bottom: 14px;
+    }
+
+    p {
+      margin-bottom: 16px;
+      color: #273735;
+      text-align: justify;
+    }
+
+    /* Highlight callout box */
+    .callout {
+      background: var(--primary-subtle);
+      border-left: 4px solid var(--primary);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 24px 0;
+      font-size: 14.5px;
+    }
+
+    .callout.coral {
+      background: #fdf3f2;
+      border-left-color: var(--accent-coral);
+    }
+
+    .callout-title {
+      font-weight: 800;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--primary);
+    }
+
+    .callout.coral .callout-title {
+      color: var(--accent-coral);
+    }
+
+    /* Figures */
+    .figure-container {
+      background: #fbfdfc;
+      border: 1px solid var(--border-line);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 32px 0;
+      text-align: center;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+    }
+
+    .figure-container img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      display: block;
+      margin: 0 auto 14px;
+    }
+
+    .figure-caption {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      font-weight: 600;
+    }
+
+    .figure-caption b {
+      color: var(--primary);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border: 1px solid var(--border-line);
+    }
+
+    th {
+      background: #f2f7f5;
+      color: var(--primary);
+      font-weight: 750;
+    }
+
+    tr:nth-child(even) {
+      background: #fafcfb;
+    }
+
+    /* Code & Algorithms */
+    pre, code {
+      font-family: var(--font-mono);
+    }
+
+    pre {
+      background: #202b29;
+      color: #e2ece9;
+      padding: 18px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 20px 0;
+    }
+
+    p code, li code {
+      background: #eaf1ef;
+      color: #175249;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+
+    ul, ol {
+      margin: 12px 0 20px 24px;
+      color: #273735;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 4px;
+      background: #e2edea;
+      color: var(--primary);
+      margin-right: 6px;
+    }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .content { padding: 24px; }
+    }
+  </style>
+<link href="/vendor/katex/katex.min.css" rel="stylesheet"/></head>
+<body>
+<div class="layout">
+<!-- Navigation Sidebar -->
+<aside class="sidebar">
+<div class="sidebar-title">Mooncake 研报导航</div>
+<nav class="sidebar-nav">
+<ul>
+<li><a href="#section-abstract">1. 摘要与核心价值</a></li>
+<li><a href="#section-workload">2. 真实生产负载深度剖析</a></li>
+<li><a href="#section-why-pd">3. Prefill 与 Decode 物理失配</a></li>
+<li><a href="#section-architecture">4. Mooncake 全局系统架构</a></li>
+<li><a href="#section-cache-pool">5. 分布式 KVCache 存储池</a></li>
+<li><a href="#section-scheduling">6. 调度器算法与热点迁移</a></li>
+<li><a href="#section-evaluation">7. 端到端性能与实测数据</a></li>
+<li><a href="#section-insights">8. 对 Session KV 的终极启示</a></li>
+</ul>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="content">
+<header class="doc-header">
+<div class="tag-banner">
+<span>📄 arXiv: 2407.00079</span>
+<span>·</span>
+<span>月之暗面 Kimi 生产推理平台架构论文</span>
+</div>
+<h1 class="doc-title">Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving</h1>
+<h2 style="font-size: 18px; margin: 0; border: none; padding: 0; color: var(--text-muted); font-weight: 600;">
+        以 KVCache 为中心的大模型解耦式推理架构 —— 中文精读与图文全解
+      </h2>
+<div class="meta-bar">
+<span>原作者：<b>秦若愚、李哲铭、张明星、徐欣然等（Moonshot AI / 清华大学）</b></span>
+<span>模型底座：<b>Kimi 生产系统 / LLaMA2-70B 架构</b></span>
+</div>
+</header>
+<!-- Section 1: Abstract -->
+<section id="section-abstract">
+<h2>1. 摘要与核心立论（Abstract）</h2>
+<p>
+<strong>Mooncake（月饼）</strong>是月之暗面为旗舰模型服务 <strong>Kimi</strong> 自研的大规模在线推理系统。
+        传统的大模型服务系统将 GPU 显存视作唯一的瓶颈，并将预填充（Prefill）与自回归生成（Decode）混部在同一次迭代中。
+        而 Mooncake 彻底推翻了这一假设，提出了<strong>“以 KVCache 为中心的解耦式架构”</strong>。
+      </p>
+<div class="callout">
+<div class="callout-title">💡 论文的第一性原理思想</div>
+<p>
+<strong>“用廉价的存储，换取宝贵的 GPU 算力”（Trading more storage for less computation）。</strong><br/>
+          通过盘活 GPU 集群中过去完全闲置的 Host CPU 内存、DRAM 与 NVMe SSD，构建跨主机的全局分布式 KVCache 资源池，
+          确保多轮对话和长上下文交互中的历史状态能够被 100% 留存与复用，从而终结长文本场景下 GPU 算力反复自我重算的灾难。
+        </p>
+</div>
+</section>
+<!-- Section 2: Workload Analysis -->
+<section id="section-workload">
+<h2>2. 真实生产负载特征：为什么多轮交互全是“算力黑洞”？</h2>
+<p>
+        论文开源并分析了 Kimi 线上真实采样的 <strong>23,608 条请求真实 Trace</strong>。
+        通过这一数据集，论文向学界首次揭示了面向真实用户的长上下文多轮对话呈现出极端残酷的物理分布：
+      </p>
+<div class="figure-container">
+<img alt="Input and output length distributions in the request trace" decoding="async" loading="lazy" src="/translations/mooncake/figure-1.png"/>
+<div class="figure-caption">
+<b>图 1：Kimi 生产负载中的输入与输出长度分布（PDF Figure 4）</b><br/>
+          横轴为 Token 长度，纵轴为累积分布 / 频次。
+        </div>
+</div>
+<h3>① 悬殊的输入输出比（平均 40:1 的算力倒挂）</h3>
+<ul>
+<li><strong>平均 Prompt 输入长度</strong>：高达 <strong>7,590 tokens</strong>；</li>
+<li><strong>平均 Output 生成长度</strong>：仅有 <strong>182 tokens</strong>；</li>
+<li><strong>输入输出比</strong>：平均高达 <strong>40:1 甚至更高</strong>！</li>
+</ul>
+<p>
+        这意味着：<strong>用户每次在前端只看模型吐出一小段话，而 GPU 超过 95% 的矩阵乘法算力，全都被用来啃那几千上万字的历史输入！</strong>
+        如果系统不把会话历史的 KV Cache 保存下来，下一次用户再问一句话，GPU 就要把这 7,590 个 Token 重新做一次巨大的 GEMM 运算。
+      </p>
+<div class="figure-container">
+<img alt="CDF of the block hit count in the request trace" decoding="async" loading="lazy" src="/translations/mooncake/figure-2.png"/>
+<div class="figure-caption">
+<b>图 2：KVCache 物理块访问命中次数的 CDF 累积分布（PDF Figure 5）</b><br/>
+          揭示了缓存访问极度不均的“二八长尾效应”。
+        </div>
+</div>
+<h3>② 物理块热度的严重极化（二八定律与热点踩踏）</h3>
+<p>
+        图 2 统计了以 512 tokens 为一个物理块的哈希复用率：
+      </p>
+<ul>
+<li><strong>50% 以上的块是冷块</strong>：仅被访问过 1 次，随会话结束而逐渐沉寂；</li>
+<li><strong>极少数热点块被调用数万次</strong>：例如系统预设 Prompt、热门共享长文档、基准引导词。这些热点块如果固定在单台物理机上，会瞬间把该节点的网卡 RDMA 带宽打满，引发网络拥塞。</li>
+</ul>
+</section>
+<!-- Section 3: Prefill vs Decode -->
+<section id="section-why-pd">
+<h2>3. 物理特性的根本冲突：为什么 Prefill 与 Decode 必须物理隔离？</h2>
+<p>
+        在传统架构（如早期 vLLM）中，Prefill 和 Decode 被混部在同一台机器的同一次 Forward 中。
+        Mooncake 论文深入测试并量化了两者的微架构冲突：
+      </p>
+<div class="figure-container">
+<img alt="Normalized throughput and latency of prefill and decoding stages" decoding="async" loading="lazy" src="/translations/mooncake/figure-3.png"/>
+<div class="figure-caption">
+<b>图 3：LLaMA2-70B 下 Prefill 与 Decode 阶段的归一化吞吐与延迟曲线（PDF Figure 2）</b><br/>
+          左图展示 Prefill 耗时随序列长度超线性增长；右图展示 Decode 耗时随 Batch 亚线性增长。
+        </div>
+</div>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>预填充阶段 (Prefill)</th>
+<th>自回归生成阶段 (Decode)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>物理计算瓶颈</strong></td>
+<td><strong>计算密集型（Compute-Bound）</strong>，跑大矩阵乘法（GEMM）</td>
+<td><strong>访存密集型（Memory-Bound）</strong>，受限于 HBM 显存带宽（GEMV）</td>
+</tr>
+<tr>
+<td><strong>延迟与长度关系</strong></td>
+<td><strong>超线性（Superlinear）暴涨</strong>（随输入长度平方级增长）</td>
+<td><strong>亚线性（Sublinear）微涨</strong>（单步只生成 1 个 token）</td>
+</tr>
+<tr>
+<td><strong>核心业务 SLA</strong></td>
+<td><strong>首字延迟 TTFT</strong>（Time to First Token）</td>
+<td><strong>字间生成延迟 TBT</strong>（Time Between Tokens，打字流畅度）</td>
+</tr>
+<tr>
+<td><strong>混部时的灾难</strong></td>
+<td colspan="2">
+              当长达 8k 的长 Prefill 冲入时，会强行夺走 GPU 所有 SM 算力数百毫秒；<br/>
+              正在打字的 Decode 请求被严重<strong>队头阻塞（Head-of-Line Blocking）</strong>，TBT 暴增数十倍，打字机瞬间卡死。
+            </td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- Section 4: System Architecture -->
+<section id="section-architecture">
+<h2>4. Mooncake 全局解耦架构（System Architecture）</h2>
+<p>
+        为解决上述矛盾，Mooncake 构建了一个彻底解耦的分布式多层系统：
+      </p>
+<div class="figure-container">
+<img alt="Mooncake Architecture" decoding="async" loading="lazy" src="/translations/mooncake/figure-4.png"/>
+<div class="figure-caption">
+<b>图 4：Mooncake 分布式全景架构图（PDF Figure 1）</b><br/>
+          清晰展示了全局调度器 Conductor、解耦的 Prefill 池、Decode 池，以及贯穿全局的分布式 KVCache 存储池。
+        </div>
+</div>
+<h3>系统核心四大组件：</h3>
+<ol>
+<li>
+<strong>全局调度器（Conductor）</strong>：<br/>
+          作为整个集群的大脑，不再仅仅按“请求数”做轮询，而是<strong>按全局 KVCache 的分布位置与命中长度</strong>来规划每一次分发。
+        </li>
+<li>
+<strong>Prefill 计算集群</strong>：<br/>
+          专门负责吃大算力。采用分块流水线并行（Chunked Pipeline Parallelism, CPP），以极高的 MFU 快速推进大输入，
+          算完后<strong>不留在本地 GPU 显存，立刻推走</strong>。
+        </li>
+<li>
+<strong>Decode 生成集群</strong>：<br/>
+          专门负责自回归打字。利用大容量聚合 HBM 与连续批处理（Continuous Batching），在平稳的 TBT 下跑满吞吐。
+        </li>
+<li>
+<strong>跨节点高速通信引擎（Messenger）</strong>：<br/>
+          基于 GPUDirect RDMA 技术自研的高速传输服务。在 Prefill 计算逐层输出的同时，通过后台流水线将 KV Cache 异步流式灌入目标节点，将跨机传输开销完全隐藏（Overlap）。
+        </li>
+</ol>
+</section>
+<!-- Section 5: KVCache Pool -->
+<section id="section-cache-pool">
+<h2>5. 分布式 KVCache 存储池与分层流转（Storage &amp; Workflow）</h2>
+<div class="figure-container">
+<img alt="The KVCache pool in CPU memory" decoding="async" loading="lazy" src="/translations/mooncake/figure-5.png"/>
+<div class="figure-caption">
+<b>图 5：CPU 内存中基于双哈希链的分布式 Paged KVCache 排布（PDF Figure 3）</b><br/>
+          每个物理块（512 tokens）的哈希值同时由自身内容和前驱块的哈希值决定，杜绝前缀冲突。
+        </div>
+</div>
+<p>
+        如图 5 所示，Mooncake 将原本被浪费的 Host CPU 内存组织为一个巨大的逻辑缓存池：
+      </p>
+<ul>
+<li><strong>块级双哈希链（Block Dual-Hash）</strong>：每个 512-Token 块的键为 <code>Hash = SHA256(Block_Tokens + Prev_Block_Hash)</code>，保证了哪怕同一个句子出现在不同上下文中，也能精准区分其精确前缀。</li>
+<li><strong>分层沉降</strong>：最热块驻留 GPU HBM，次热块进入 CPU DRAM，长尾冷块异步沉降至 NVMe SSD。</li>
+</ul>
+<div class="figure-container">
+<img alt="Workflow of inference instances" decoding="async" loading="lazy" src="/translations/mooncake/figure-6.png"/>
+<div class="figure-caption">
+<b>图 6：端到端单请求的四阶段执行流水线（PDF Figure 6）</b><br/>
+          展示了前缀复用、逐层增量 Prefill、RDMA 异步流式灌入、以及解码节点连续批处理。
+        </div>
+</div>
+<h3>四步执行流水线：</h3>
+<ol>
+<li><strong>KVCache 复用（Bootstrap）</strong>：根据调度决议，若存在历史前缀，直接通过 RDMA 从分布式存储池载入 GPU HBM；</li>
+<li><strong>分块增量计算（Incremental Prefill）</strong>：只对新增的 Uncached Tokens 进行计算；</li>
+<li><strong>逐层流式传输（Layer-wise Overlap Transfer）</strong>：模型每算完一层 Transformer Layer，Messenger 就通过 RDMA 把这层的 KV 实时推送出去，与后续计算完全并行重叠；</li>
+<li><strong>连续批处理解码（Continuous Decoding）</strong>：Decode 节点接纳完全部上下文后，加入连续批处理队列平稳吐字。</li>
+</ol>
+</section>
+<!-- Section 6: Scheduling Algorithm -->
+<section id="section-scheduling">
+<h2>6. 调度器核心算法与热点自愈（Scheduling Algorithm）</h2>
+<p>
+        传统的调度器只考虑负载均衡（哪个节点空闲发给谁），而 Mooncake 的调度器核心是<strong>“在传输耗时、计算耗时与排队耗时之间求极小值”</strong>：
+      </p>
+<pre><code>// Mooncake 调度核心代价推导伪代码
+对于候选 Prefill 实例 p:
+  1. prefix_len = 实例 p 上的命中前缀长度
+  2. T_prefill  = 预估需要算的剩余增量 tokens 耗时 (Prompt_len - prefix_len)
+  3. T_transfer = 若需要从远端拉取更优前缀，预估 RDMA 传输时间
+  4. T_queue    = 实例 p 当前队列所有任务的总等待排队时间
+
+总预估首字延迟 TTFT = T_transfer + T_queue + T_prefill
+目标：选择使 (TTFT) 达到最小且满足 TTFT_SLO 的最优实例对 (p, d)！</code></pre>
+<div class="figure-container">
+<img alt="The prefill scheduling experiment in the Mooncake cluster" decoding="async" loading="lazy" src="/translations/mooncake/figure-7.png"/>
+<div class="figure-caption">
+<b>图 7：Mooncake 调度策略在真实流量下的 TTFT 表现（PDF Figure 7）</b><br/>
+          对比了随机调度、朴素负载均衡、感知缓存调度、以及融合热点平衡的 KVCache-Centric 调度。
+        </div>
+</div>
+<div class="callout coral">
+<div class="callout-title">⚠️ 启发式热点迁移（Hot-Spot Migration）的妙处</div>
+<p>
+          如果某个长文档极其火爆，大家都涌向持有它的 Prefill 节点，该节点的排队时间 <code>T_queue</code> 会迅速膨胀。
+          当排队时间超过了“在另一台空闲卡上重算或远程传输”的代价时，调度器会主动<strong>把请求转派给备用节点，并在后台顺带完成多副本复制</strong>。
+          系统无需复杂的全局预测模型，纯靠局部启发式逻辑就自动消除了网络与算力热点！
+        </p>
+</div>
+</section>
+<!-- Section 7: Evaluation -->
+<section id="section-evaluation">
+<h2>7. 端到端性能与实测数据（Evaluation）</h2>
+<p>
+        论文在 <strong>8 张 A800-80GB (800Gbps RDMA)</strong> 节点集群上，采用 LLaMA2-70B 架构模型，严格对比了 <strong>Mooncake vs 生产级 vLLM</strong>：
+      </p>
+<div class="figure-container">
+<img alt="End-to-end experiments of Mooncake and vLLM on simulated data" decoding="async" loading="lazy" src="/translations/mooncake/figure-8.png"/>
+<div class="figure-caption">
+<b>图 8：超长上下文模拟数据（16k、32k、64k、128k）下的吞吐对比（PDF Figure 9）</b><br/>
+          纵轴为满足 SLO 的有效吞吐（Goodput），横轴为请求并发速率。
+        </div>
+</div>
+<p>
+        在超长 Prompt（16k 到 128k）压力测试下：
+        <strong>Mooncake 相对 vLLM 实现了 50% ~ 525% 的惊人吞吐提升！</strong><br/>
+        原因在于：vLLM 混部时，128k 的超长 Prefill 一进来，所有的 Decode 任务被活活卡死，导致几乎全部请求都违反了 TBT SLA；而 Mooncake 解耦后，Decode 集群完全不受干扰，100% 保持打字机流畅输出。
+      </p>
+<div class="figure-container">
+<img alt="Request TTFT and TBT distributions under real workloads" decoding="async" loading="lazy" src="/translations/mooncake/figure-9.png"/>
+<div class="figure-caption">
+<b>图 9：Kimi 真实 2.3 万条生产 Trace 回放下的 TTFT 与 TBT 达标率 CDF（PDF Figure 10）</b><br/>
+          Mooncake-[10P+10D] 对比 vLLM-[20M] 相同卡数配置。
+        </div>
+</div>
+<table>
+<thead>
+<tr>
+<th>对比指标（20 卡集群真实回放）</th>
+<th>生产基线 vLLM-[20M]</th>
+<th>Mooncake-[10P+10D]</th>
+<th>实际成效</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TTFT 首字延迟 SLO 达标率</strong></td>
+<td>约 100%</td>
+<td>约 100%</td>
+<td>持平</td>
+</tr>
+<tr>
+<td><strong>TBT 字间延迟 SLO 达标率 (≤0.1s)</strong></td>
+<td><strong>仅 57%</strong>（大量严重卡顿）</td>
+<td><strong>近 100% 达标</strong></td>
+<td><strong>彻底消除打字卡死</strong></td>
+</tr>
+<tr>
+<td><strong>在满足 SLO 下的最大承载请求数</strong></td>
+<td>基线 (1.0×)</td>
+<td><strong>提升 75%</strong></td>
+<td><strong>净提升 75% 有效业务容量</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- Section 8: Final Insight -->
+<section id="section-insights">
+<h2>8. 终极启示：对我们项目（Session KV / qwen3-runtime）的映射</h2>
+<p>
+        读完整篇 Mooncake 论文，再回看我们自己的项目实现，所有设计完全能形成<strong>严密的逻辑闭环</strong>：
+      </p>
+<div class="callout">
+<div class="callout-title">🎯 核心认知闭环</div>
+<ol>
+<li>
+<strong>为什么单靠普通前缀缓存（APC）在多轮 Agent 下行不通？</strong><br/>
+            Mooncake 的生产数据证明了：在高并发和长上下文中，显存资源是极其短缺的。
+            APC 的引用计数为 0，属于随时可被回收的弱引用。在 Agent 暂停等待工具返回的 1~3 秒内，这些块极易被并发涌入的新请求覆盖写掉，导致<strong>缓存颠簸（Cache Thrashing）</strong>，下一轮被迫退化回漫长的全量重算。
+          </li>
+<li>
+<strong>为什么我们的项目必须设计 <code>PAUSED</code> 状态与显式 Session KV？</strong><br/>
+            正是为了在单机多轮 Rollout 场景下，建立<strong>有状态的生命周期契约（Leased Contract）</strong>：
+            在等待外部工具期间，既让出调度槽位（不占 <code>max_num_seqs</code> 算力），又锁定其物理块（或卸载到 CPU 内存），
+            <strong>100% 确定性地杜绝了已知历史的二次 Prefill！</strong>
+</li>
+<li>
+<strong>架构高度的一致性</strong>：<br/>
+            Mooncake 是在<strong>超大规模 GPU 集群</strong>上通过 RDMA 和分布式内存池做全局 Session KV；<br/>
+            我们的 <code>qwen3-runtime</code> 是在<strong>单机多轮 Agentic RL</strong> 上通过 <code>hold_kv</code>、<code>PAUSED</code> 和分层 CPU Offload 做本地 Session KV。<br/>
+<strong>两者的底层第一性原理完全相同：算力极其昂贵，存储相对便宜；决不能把时间浪费在重复计算已知历史上！</strong>
+</li>
+</ol>
+</div>
+</section>
+</main>
+</div>
+<script defer="True" src="/vendor/katex/katex.min.js"></script><script defer="True" src="/vendor/katex/contrib/auto-render.min.js"></script><script defer="True" src="/translations/math.js"></script></body>
+</html>

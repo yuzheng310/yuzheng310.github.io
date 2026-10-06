@@ -2,13 +2,42 @@
 import '../styles/portfolio.css';
 import '@fontsource/inter/latin-400.css';
 import '@fontsource/inter/latin-600.css';
-const {title='yuzheng310', description='关于推理系统、代码 Agent 和数据库的一些工作与记录。', active='home'}=Astro.props;
+interface Props { title?: string; description?: string; active?: string; wide?: boolean; article?: boolean; }
+const { title = 'yuzheng310 · 推理、Agent 与数据库', description = '关注大模型推理、代码 Agent 与数据库系统。这里记录我的工程项目、实现过程与技术思考。', active = 'home', wide = false, article = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
 ---
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="description" content={description}/><meta name="theme-color" content="#ffffff"/><title>{title}</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"/></head>
-<body><a class="skip" href="#main">跳到正文</a>
-<div class="site"><header class="header"><a class="home-link" href="/" aria-label="yuzheng310 首页">yuzheng310</a><nav aria-label="主导航"><a href="/projects/" aria-current={active==='projects'?'page':undefined}>项目</a><a href="/blog/" aria-current={active==='blog'?'page':undefined}>笔记</a><a href="/about/" aria-current={active==='about'?'page':undefined}>关于</a></nav></header>
-<main id="main"><slot/></main>
-<footer><span>yuzheng310</span><div><a href="https://github.com/yuzheng310" target="_blank" rel="noreferrer">GitHub</a><a href="/rss.xml">RSS</a><a href="https://github.com/markhorn-dev/astro-nano" target="_blank" rel="noreferrer">Astro Nano</a></div></footer></div>
-</body></html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#fafaf7" />
+    <title>{title}</title>
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title="yuzheng310 · 项目与笔记" href="/rss.xml" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content={article ? 'article' : 'website'} />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:site_name" content="yuzheng310" />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到正文</a>
+    <div class:list={['site', { 'site-wide': wide }]}>
+      <header class="header">
+        <a class="home-link" href="/" aria-label="yuzheng310 首页"><span class="site-mark" aria-hidden="true">y.</span>yuzheng310</a>
+        <nav aria-label="主导航">
+          <a href="/projects/" aria-current={active === 'projects' ? 'page' : undefined}>项目</a>
+          <a href="/blog/" aria-current={active === 'blog' ? 'page' : undefined}>笔记</a>
+          <a href="/about/" aria-current={active === 'about' ? 'page' : undefined}>关于</a>
+        </nav>
+      </header>
+      <main id="main" tabindex="-1"><slot /></main>
+      <footer><div><a class="footer-name" href="/">yuzheng310</a><span class="footer-note">项目、问题与思考。</span></div><div><a href="https://github.com/yuzheng310">GitHub ↗</a><a href="/rss.xml">RSS</a><a href="https://github.com/markhorn-dev/astro-nano">Astro Nano ↗</a></div></footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>图解大模型推理工作原理（LLM Inference Clearly Explained）</title>
+<style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-light: #64748b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-bg: #eff6ff;
+      --border-color: #e2e8f0;
+      --highlight-bg: #fef08a;
+      --highlight-border: #eab308;
+      --comment-bg: #fef9c3;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --text-light: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #60a5fa;
+      --accent-bg: #1e3a8a33;
+      --border-color: #334155;
+      --highlight-bg: #854d0e88;
+      --highlight-border: #ca8a04;
+      --comment-bg: #713f1244;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.75;
+      font-size: 16.5px;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* 顶部进度条 */
+    #reading-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      width: 0%;
+      z-index: 1000;
+      transition: width 0.1s;
+    }
+
+    /* 顶部导航与控制栏 */
+    header.top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 24px;
+    }
+    [data-theme="dark"] header.top-nav {
+      background: rgba(15, 23, 42, 0.92);
+    }
+
+    .nav-container {
+      max-width: 1140px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-tag {
+      background: var(--accent-bg);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .nav-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mode-group {
+      display: flex;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 3px;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      padding: 5px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .mode-btn.active {
+      background: var(--bg-primary);
+      color: var(--accent);
+      box-shadow: var(--shadow-sm);
+      font-weight: 600;
+    }
+
+    .action-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+    .action-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .action-btn.secondary {
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .action-btn.secondary:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .theme-toggle-btn {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    /* 主阅读区布局 */
+    .page-wrapper {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 24px 100px;
+      position: relative;
+    }
+
+    /* 顶部元信息卡片 */
+    .article-header {
+      margin-bottom: 36px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 28px;
+    }
+
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: var(--text-light);
+      flex-wrap: wrap;
+    }
+
+    .author-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: var(--text-main);
+      text-decoration: none;
+    }
+
+    .author-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    h1.article-title {
+      font-size: 32px;
+      line-height: 1.35;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      color: var(--text-main);
+    }
+
+    .article-lead {
+      font-size: 18px;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* 封面大图 */
+    .hero-figure {
+      margin: 24px 0 36px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .hero-figure img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* 正文排版 */
+    .content-area {
+      position: relative;
+    }
+
+    .content-area.editable-active {
+      outline: 2px dashed rgba(59, 130, 246, 0.4);
+      outline-offset: 8px;
+      border-radius: 8px;
+    }
+
+    h2.section-heading {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 44px 0 18px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2.section-heading .heading-num {
+      color: var(--accent);
+      font-size: 20px;
+      font-family: var(--font-mono);
+    }
+
+    h3.sub-heading {
+      font-size: 19px;
+      font-weight: 600;
+      margin: 26px 0 12px;
+    }
+
+    p {
+      margin-bottom: 18px;
+      color: var(--text-muted);
+    }
+
+    strong {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    ul, ol {
+      margin-bottom: 20px;
+      padding-left: 24px;
+      color: var(--text-muted);
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    /* 引用与提示框 */
+    .callout-box {
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent);
+      padding: 16px 20px;
+      border-radius: 0 10px 10px 0;
+      margin: 24px 0;
+    }
+
+    .callout-box.tip {
+      border-left-color: #10b981;
+      background: rgba(16, 185, 129, 0.06);
+    }
+
+    .callout-box.question {
+      border-left-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    /* 代码块 */
+    
+    /* 专业 IDE 代码窗口风格 */
+    .code-window {
+      margin: 24px 0;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #161b22;
+      padding: 9px 16px;
+      border-bottom: 1px solid #30363d;
+      font-size: 13px;
+    }
+    .mac-dots { display: flex; gap: 6px; align-items: center; }
+    .mac-dots .dot { width: 11px; height: 11px; border-radius: 50%; }
+    .mac-dots .dot.red { background: #ff5f56; }
+    .mac-dots .dot.yellow { background: #ffbd2e; }
+    .mac-dots .dot.green { background: #27c93f; }
+    .code-filename { font-family: var(--font-mono); font-size: 12.5px; color: #8b949e; font-weight: 500; }
+    .code-header-right { display: flex; align-items: center; gap: 10px; }
+    .code-lang-badge {
+      background: #21262d; color: #58a6ff; font-family: var(--font-mono); font-size: 11px;
+      font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(88, 166, 255, 0.25);
+    }
+    .copy-code-btn {
+      background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 3px 10px;
+      border-radius: 5px; font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+      transition: all 0.15s ease;
+    }
+    .copy-code-btn:hover { background: #30363d; color: #fff; }
+    .code-body { display: flex; padding: 16px 0; overflow-x: auto; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.7; }
+    .line-numbers {
+      padding: 0 14px 0 16px; color: #484f58; text-align: right; user-select: none;
+      border-right: 1px solid #21262d; font-family: var(--font-mono); display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .code-body pre { margin: 0; padding: 0 18px; background: transparent; border: none; box-shadow: none; color: #e6edf3; overflow-x: visible; flex-grow: 1; }
+    .code-body code { background: transparent; padding: 0; color: inherit; font-family: inherit; font-size: inherit; }
+    .tok-keyword { color: #ff7b72; font-weight: 600; }
+    .tok-builtin { color: #79c0ff; font-weight: 600; }
+    .tok-number { color: #79c0ff; }
+    .tok-string { color: #a5d6ff; }
+    .tok-comment { color: #8b949e; font-style: italic; }
+
+    pre.code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 18px 20px;
+      border-radius: 10px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin: 20px 0 24px;
+      border: 1px solid #334155;
+      box-shadow: var(--shadow-sm);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--bg-tertiary);
+      color: var(--text-main);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    pre.code-block code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+    }
+
+    /* 插图与多媒体排版 */
+    figure.article-figure {
+      margin: 28px 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: box-shadow 0.2s ease;
+    }
+
+    figure.article-figure:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    figure.article-figure .img-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--bg-tertiary);
+      cursor: zoom-in;
+    }
+
+    figure.article-figure img {
+      max-width: 100%;
+      height: auto;
+      max-height: 520px;
+      object-fit: contain;
+      display: block;
+    }
+
+    figure.article-figure video {
+      width: 100%;
+      max-height: 540px;
+      display: block;
+      background: #000;
+    }
+
+    figcaption {
+      padding: 10px 16px;
+      font-size: 13.5px;
+      color: var(--text-light);
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    figcaption .fig-icon {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    /* 数据对比表格 */
+    table.data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 24px 0;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 14.5px;
+    }
+
+    table.data-table th, table.data-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    table.data-table th {
+      background: var(--bg-secondary);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    table.data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.data-table tr:nth-child(even) td {
+      background: rgba(0, 0, 0, 0.015);
+    }
+    [data-theme="dark"] table.data-table tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* 批注高亮样式 */
+    mark.user-highlight {
+      background-color: var(--highlight-bg);
+      border-bottom: 2px solid var(--highlight-border);
+      color: inherit;
+      padding: 2px 2px;
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    mark.user-highlight:hover {
+      filter: brightness(0.95);
+    }
+
+    /* 划选浮动工具栏 */
+    #selection-popover {
+      position: absolute;
+      display: none;
+      background: #1e293b;
+      color: #fff;
+      border-radius: 8px;
+      padding: 5px 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 200;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      transform: translate(-50%, -100%);
+      margin-top: -8px;
+    }
+
+    #selection-popover button {
+      background: transparent;
+      border: none;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+    }
+
+    #selection-popover button:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* 批注与修改抽屉侧边栏 */
+    #annotation-drawer {
+      position: fixed;
+      top: 0;
+      right: -420px;
+      width: 400px;
+      height: 100vh;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      z-index: 500;
+      transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #annotation-drawer.open {
+      right: 0;
+    }
+
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-secondary);
+    }
+
+    .drawer-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drawer-close {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      color: var(--text-light);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .comment-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 14px;
+      position: relative;
+    }
+
+    .comment-card .card-quote {
+      border-left: 3px solid var(--accent);
+      padding-left: 8px;
+      color: var(--text-light);
+      margin-bottom: 8px;
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    .comment-card .card-text {
+      color: var(--text-main);
+      font-weight: 500;
+      white-space: pre-wrap;
+    }
+
+    .comment-card .card-time {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .comment-card .delete-btn {
+      color: #ef4444;
+      background: transparent;
+      border: none;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .drawer-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* 批注输入浮层 Modal */
+    #comment-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.4);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 600;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-content {
+      background: var(--bg-primary);
+      width: 90%;
+      max-width: 480px;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border-color);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .modal-quote {
+      background: var(--bg-secondary);
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      border-left: 3px solid var(--accent);
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    .modal-textarea {
+      width: 100%;
+      height: 100px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      resize: vertical;
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      margin-bottom: 14px;
+    }
+
+    .modal-textarea:focus {
+      outline: 2px solid var(--accent);
+      background: var(--bg-primary);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* 提示消息 Toast */
+    #toast-msg {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      z-index: 1000;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s;
+      opacity: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #toast-msg.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* 图片放大预览模态框 */
+    #img-lightbox {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 1500;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      cursor: zoom-out;
+    }
+    #img-lightbox img {
+      max-width: 92vw;
+      max-height: 92vh;
+      object-fit: contain;
+      border-radius: 6px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    @media (max-width: 768px) {
+      .nav-title {
+        display: none;
+      }
+      #annotation-drawer {
+        width: 100vw;
+        right: -100vw;
+      }
+      .page-wrapper {
+        padding: 24px 16px 80px;
+      }
+      h1.article-title {
+        font-size: 26px;
+      }
+    }
+  </style>
+<style>body{padding-top:0!important}.page-layout,.page-wrapper{margin-top:32px!important}</style><link href="/vendor/katex/katex.min.css" rel="stylesheet"/></head>
+<body>
+<!-- 顶部阅读进度条 -->
+<div id="reading-progress"></div>
+<!-- 顶部导航与控制栏 -->
+
+<!-- 文章主内容区 -->
+<main class="page-wrapper">
+<!-- 文章头部 -->
+<header class="article-header">
+<div class="article-meta">
+<a class="author-pill" href="https://x.com/_avichawla" rel="noopener" target="_blank">
+<img alt="Avi Chawla" class="author-avatar" decoding="async" loading="lazy" src="/translations/images/75d6be0e60c614e7.jpg"/>
+<span>Avi Chawla</span>
+</a>
+<span>•</span>
+<span>阅读时长约 8 分钟</span>
+<span>•</span>
+<span>基于 ASD-STE100 技术规范润色</span>
+</div>
+<h1 class="article-title">图解大模型推理工作原理（LLM Inference Clearly Explained）</h1>
+<p class="article-lead">
+        单次 <code>generate()</code> 调用中，同一块 GPU 上会相继执行两个完全不同的计算阶段：Prefill（计算受限）与 Decode（访存受限）。准确诊断推理瓶颈是实现部署提速的首要步骤。
+      </p>
+<!-- 封面图 -->
+<figure class="hero-figure">
+<img alt="How LLM Inference Works Cover" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/27b90a08853d18c0.jpg"/>
+</figure>
+</header>
+<!-- 可编辑与批注的正文容器 -->
+<article class="content-area" id="article-content">
+<!-- 引言段落 -->
+<section class="section-block">
+<p>在大语言模型（LLM）的单次 <code>generate()</code> 调用中，同一块 GPU 会先后运行两个计算特征截然不同的阶段：</p>
+<ul>
+<li><strong>Prefill（预填充阶段）</strong>：处理输入 Prompt，属于<strong>计算受限（Compute-bound）</strong>；</li>
+<li><strong>Decode（解码阶段）</strong>：逐个生成输出 Token，属于<strong>访存/内存带宽受限（Memory-bound）</strong>。</li>
+</ul>
+<p>大多数推理优化方案往往仅针对其中一个阶段生效。准确诊断系统瓶颈究竟处于哪个阶段，是工程部署性能优化的第一步。</p>
+<p>本文将从分词输入到流式输出贯穿整个推理链路，详细拆解各个阶段的时间开销与硬件瓶颈所在。</p>
+</section>
+<!-- 第 1 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">01.</span> 分词与向量嵌入（Tokenization &amp; Embedding）</h2>
+<p>BPE（字节对编码，Byte Pair Encoding）等分词器负责将原始文本转换为词表中的整数 ID。词表规模通常在 50,000 左右。</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">tokenization.py</span>
+<div class="code-header-right">
+<span class="code-lang-badge">Python</span>
+<button class="copy-code-btn" data-code='# 1. 文本输入：原始自然语言提示词 Prompt
+prompt = "How does inference work?"
+
+# 2. 分词编码：BPE 分词器将文本子词切分为离散词表中的整数 Token ID
+# 词表规模约为 50,000，每个子词对应唯一的一个整数标识符
+ids = tokenizer.encode(prompt)  # 输出示例 -&gt; [2437, 1374, 32278, 670, 30]' onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+<pre><code><span class="tok-comment"># 1. 文本输入：原始自然语言提示词 Prompt</span>
+prompt = <span class="tok-string">"How does inference work?"</span>
+
+<span class="tok-comment"># 2. 分词编码：BPE 分词器将文本子词切分为离散词表中的整数 Token ID</span>
+<span class="tok-comment"># 词表规模约为 50,000，每个子词对应唯一的一个整数标识符</span>
+ids = tokenizer.encode(prompt)  <span class="tok-comment"># 输出示例 -&gt; [2437, 1374, 32278, 670, 30]</span></code></pre>
+</div>
+</div>
+<p>每个 Token ID 对应嵌入表（Embedding Table）中的一行。嵌入表是一个形状为 <code>[vocab_size, hidden_dim]</code> 的可学习矩阵。以隐层维度为 4,096 的模型为例，每个 Token 均映射为一个 4,096 维的连续稠密向量。</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">embedding_lookup.py</span>
+<div class="code-header-right">
+<span class="code-lang-badge">Python</span>
+<button class="copy-code-btn" data-code="# 1. 嵌入表规格：形状为 [vocab_size, hidden_dim]，存储各 Token 的稠密语义特征
+# 对于 hidden_dim = 4096 的大模型，嵌入表为 50000 x 4096 的大型权重矩阵
+
+# 2. 向量检索：通过整型索引直接从嵌入表中切片提取对应行向量
+# 单次查表将 [num_tokens] 的 ID 列表映射为三维浮点张量 [num_tokens, 4096]
+vectors = embedding_table[ids]   # 输出张量形状: [num_tokens, 4096]" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+<pre><code><span class="tok-comment"># 1. 嵌入表规格：形状为 [vocab_size, hidden_dim]，存储各 Token 的稠密语义特征</span>
+<span class="tok-comment"># 对于 hidden_dim = 4096 的大模型，嵌入表为 50000 x 4096 的大型权重矩阵</span>
+
+<span class="tok-comment"># 2. 向量检索：通过整型索引直接从嵌入表中切片提取对应行向量</span>
+<span class="tok-comment"># 单次查表将 [num_tokens] 的 ID 列表映射为三维浮点张量 [num_tokens, 4096]</span>
+vectors = embedding_table[ids]   <span class="tok-comment"># 输出张量形状: [num_tokens, 4096]</span></code></pre>
+</div>
+</div>
+<!-- 插图 1 -->
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Embedding Table Mapping" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/8a28bc942dc98287.png"/>
+</div>
+<figcaption><span class="fig-icon">图 1</span> Token ID 通过嵌入表映射为固定维度的稠密向量序列</figcaption>
+</figure>
+<p>在此阶段，模型会同步注入位置信息。现代主流架构大多采用 <strong>RoPE（旋转位置编码，Rotary Position Embeddings）</strong>。RoPE 通过直接旋转嵌入向量来显式编码相对位置信息，而非额外叠加独立的位置向量。</p>
+</section>
+<!-- 第 2 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">02.</span> Transformer 计算层（Transformer Layers）</h2>
+<p>完成嵌入的序列将依次穿过多层堆叠的 Transformer 结构（通常为 32 到 80+ 层，具体取决于模型规模）。</p>
+<p>每一层顺序执行以下两项核心操作：</p>
+<h3 class="sub-heading">1) 自注意力机制（Self-Attention）</h3>
+<p>通过可学习的权重矩阵，为每个 Token 分别计算 Query（Q）、Key（K）和 Value（V）三组投影向量。</p>
+<!-- 插图 2 -->
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Attention Q K V Projections" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/49107fb3f4394d2c.jpg"/>
+</div>
+<figcaption><span class="fig-icon">图 2</span> 每个 Token 投影生成 Q、K、V 向量并计算注意力打分矩阵</figcaption>
+</figure>
+<p>每个 Token 的 Query 会与其余所有 Token 的 Key 进行点积打分。这些分数经过除以 <code>sqrt(d_k)</code> 缩放并经 Softmax 归一化后，决定了各个 Token 的 Value 参与融合的权重比例：</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">self_attention.py</span>
+<div class="code-header-right">
+<span class="code-lang-badge">Python</span>
+<button class="copy-code-btn" data-code="# 1. Q、K、V 投影：利用可学习权重矩阵完成线性映射
+# x 为输入特征序列，Wq, Wk, Wv 分别为主注意力投影矩阵
+Q, K, V = x @ Wq, x @ Wk, x @ Wv
+
+# 2. 注意力打分：计算 Query 与 Key 之间的点积相似度，并除以 sqrt(d_k) 缩放防止梯度爆炸
+scores = (Q @ K.T) / sqrt(d_k)
+
+# 3. 权重归一化：Softmax 作用在最后一维，每一行权重之和严格等于 1
+weights = softmax(scores)        # 形状: [num_tokens, num_tokens]
+
+# 4. 加权聚合：依据注意力权重将各个 Token 的 Value 向量加权混合
+attn_output = weights @ V        # 最终产出融入上下文关联的新表征向量" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
+<pre><code><span class="tok-comment"># 1. Q、K、V 投影：利用可学习权重矩阵完成线性映射</span>
+<span class="tok-comment"># x 为输入特征序列，Wq, Wk, Wv 分别为主注意力投影矩阵</span>
+Q, K, V = x @ Wq, x @ Wk, x @ Wv
+
+<span class="tok-comment"># 2. 注意力打分：计算 Query 与 Key 之间的点积相似度，并除以 sqrt(d_k) 缩放防止梯度爆炸</span>
+scores = (Q @ K.T) / <span class="tok-builtin">sqrt</span>(d_k)
+
+<span class="tok-comment"># 3. 权重归一化：Softmax 作用在最后一维，每一行权重之和严格等于 1</span>
+weights = <span class="tok-builtin">softmax</span>(scores)        <span class="tok-comment"># 形状: [num_tokens, num_tokens]</span>
+
+<span class="tok-comment"># 4. 加权聚合：依据注意力权重将各个 Token 的 Value 向量加权混合</span>
+attn_output = weights @ V        <span class="tok-comment"># 最终产出融入上下文关联的新表征向量</span></code></pre>
+</div>
+</div>
+<h3 class="sub-heading">2) 前馈神经网络（Feed-Forward Network, FFN）</h3>
+<p>通过两层 MLP 对每个 Token 的向量独立进行非线性变换。一句话概括二者分工：<strong>Attention 负责在不同 Token 位置之间传递信息，FFN 负责在位置内部完成高阶特征变换。</strong></p>
+<p>通过最后一层 Transformer 后，模型将序列末位 Token 的隐藏状态重新投影回词表维度（<code>[hidden_dim, vocab_size]</code>），经过 Softmax 转换概率后采样生成首个输出 Token。</p>
+</section>
+<!-- 第 3 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">03.</span> Prefill 阶段：计算受限（Compute-Bound）</h2>
+<p>处理输入 Prompt 是推理的第一阶段。在该阶段中，<strong>所有输入 Token 均被并行处理</strong>：模型同时计算全部 Token 的 Q、K、V 投影，注意力运算表现为高密度的大规模矩阵相乘（GEMM）。</p>
+<p>该阶段属于典型的<strong>计算受限（Compute-bound）</strong>任务。此时 GPU 的算术吞吐单元是主要性能瓶颈，算力利用率通常维持在高位。衡量该阶段性能的核心指标是 <strong>TTFT（Time to First Token，首字时延）</strong>，即自发送请求起至产生首个输出 Token 为止的延迟。</p>
+<p>在 Prefill 过程中，模型还会建立 <strong>KV Cache</strong>：每一层生成的 K 和 V 张量均会被持久存储在显存中以备后续解码复用。</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">prefill_phase.py</span>
+<div class="code-header-right">
+<span class="code-lang-badge">Python</span>
+<button class="copy-code-btn" data-code="# ==============================================================================
+# Prefill（预填充）阶段：一次性并行计算整个输入 Prompt（计算受限 Compute-Bound）
+# ==============================================================================
+
+# 1. 嵌入与位置编码：查表获取 Prompt 全部 Token 的向量表示，并注入 RoPE 旋转位置信息
+hidden = embed(prompt_tokens) + positions
+
+# 2. 逐层前向传递：遍历模型所有 Transformer 层（通常 32~80+ 层）
+for layer in model.layers:
+    # 步骤 ①：同时并行计算当前层所有 Token 的 Q、K、V 投影矩阵
+    Q, K, V = project(hidden)             # 矩阵规模: [num_prompt_tokens, hidden_dim]
+    
+    # 步骤 ②：多头自注意力计算并叠加残差连接
+    hidden  = attention(Q, K, V) + hidden
+    
+    # 步骤 ③：FFN（前馈网络双层 MLP）非线性变换并叠加残差
+    hidden  = feedforward(hidden) + hidden
+    
+    # 步骤 ④【核心机制】：将当前层计算的全部 K、V 写入 GPU 显存中的 KV Cache 供后续复用！
+    cache_kv(layer, K, V)
+
+# 3. 首字采样：仅提取序列末位 Token 的隐藏状态，投影至词表空间并采样得到第 1 个输出 Token
+first_token = sample(project_to_vocab(hidden[-1]))" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span></div>
+<pre><code><span class="tok-comment"># ==============================================================================</span>
+<span class="tok-comment"># Prefill（预填充）阶段：一次性并行计算整个输入 Prompt（计算受限 Compute-Bound）</span>
+<span class="tok-comment"># ==============================================================================</span>
+
+<span class="tok-comment"># 1. 嵌入与位置编码：查表获取 Prompt 全部 Token 的向量表示，并注入 RoPE 旋转位置信息</span>
+hidden = <span class="tok-builtin">embed</span>(prompt_tokens) + positions
+
+<span class="tok-comment"># 2. 逐层前向传递：遍历模型所有 Transformer 层（通常 32~80+ 层）</span>
+<span class="tok-keyword">for</span> layer <span class="tok-keyword">in</span> model.layers:
+    <span class="tok-comment"># 步骤 ①：同时并行计算当前层所有 Token 的 Q、K、V 投影矩阵</span>
+    Q, K, V = <span class="tok-builtin">project</span>(hidden)             <span class="tok-comment"># 矩阵规模: [num_prompt_tokens, hidden_dim]</span>
+    
+    <span class="tok-comment"># 步骤 ②：多头自注意力计算并叠加残差连接</span>
+    hidden  = <span class="tok-builtin">attention</span>(Q, K, V) + hidden
+    
+    <span class="tok-comment"># 步骤 ③：FFN（前馈网络双层 MLP）非线性变换并叠加残差</span>
+    hidden  = <span class="tok-builtin">feedforward</span>(hidden) + hidden
+    
+    <span class="tok-comment"># 步骤 ④【核心机制】：将当前层计算的全部 K、V 写入 GPU 显存中的 KV Cache 供后续复用！</span>
+    <span class="tok-builtin">cache_kv</span>(layer, K, V)
+
+<span class="tok-comment"># 3. 首字采样：仅提取序列末位 Token 的隐藏状态，投影至词表空间并采样得到第 1 个输出 Token</span>
+first_token = <span class="tok-builtin">sample</span>(<span class="tok-builtin">project_to_vocab</span>(hidden[-<span class="tok-number">1</span>]))</code></pre>
+</div>
+</div>
+</section>
+<!-- 第 4 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">04.</span> Decode 阶段：访存受限（Memory-Bound）</h2>
+<p>首个 Token 生成完毕后，模型转入自回归解码循环，每次迭代仅生成 1 个新 Token。对于每一个新生成的 Token，模型仅需为其自身计算单步的 Q、K、V 向量，而所有历史 Token 的 K 和 V 已经存在于 KV Cache 中。</p>
+<div class="code-window">
+<div class="code-header">
+<div class="mac-dots">
+<span class="dot red"></span>
+<span class="dot yellow"></span>
+<span class="dot green"></span>
+</div>
+<span class="code-filename">decode_phase.py</span>
+<div class="code-header-right">
+<span class="code-lang-badge">Python</span>
+<button class="copy-code-btn" data-code="# ==============================================================================
+# Decode（解码）阶段：逐字自回归迭代生成（访存受限 Memory-Bound）
+# ==============================================================================
+
+token = first_token
+steps = 0
+
+# 自回归生成循环：一次循环产出 1 个 Token，直至遇到结束符 STOP 或达到最大步数
+while token != STOP and steps &lt; MAX_STEPS:
+    # 1. 仅为当前这单个最新 Token 进行嵌入与位置编码
+    x = embed(token) + position(steps)
+    
+    # 2. 逐层前向传播：
+    for layer in model.layers:
+        # 步骤 ①：仅计算当前单 Token 的投影向量 q, k, v（计算量极小）
+        q, k, v = project(x)
+        
+        # 步骤 ②【核心机制】：将当前步的 k, v 增量追加至历史缓存，直接获取完整上下文历史
+        K_all, V_all = caches[layer].append(k, v)  # 拼接历史已缓存的所有 Token K/V
+        
+        # 步骤 ③：当前单个 q 与整段历史 K_all 做点积注意力，计算 FFN，累加残差
+        # 硬件瓶颈：计算量虽小，但每一步都必须完整从显存重新加载全部模型权重与全部 KV Cache！
+        x = layer.forward(q, K_all, V_all, x)
+    
+    # 3. 采样并流式吐字：
+    token = sample(project_to_vocab(x))
+    steps += 1
+    yield token  # 立即流式返回给用户界面" onclick="copyCode(this)" title="复制此段代码">
+<span class="copy-icon">📋</span> 复制
+      </button>
+</div>
+</div>
+<div class="code-body">
+<div class="line-numbers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span></div>
+<pre><code><span class="tok-comment"># ==============================================================================</span>
+<span class="tok-comment"># Decode（解码）阶段：逐字自回归迭代生成（访存受限 Memory-Bound）</span>
+<span class="tok-comment"># ==============================================================================</span>
+
+token = first_token
+steps = <span class="tok-number">0</span>
+
+<span class="tok-comment"># 自回归生成循环：一次循环产出 1 个 Token，直至遇到结束符 STOP 或达到最大步数</span>
+<span class="tok-keyword">while</span> token != STOP <span class="tok-keyword">and</span> steps &lt; MAX_STEPS:
+    <span class="tok-comment"># 1. 仅为当前这单个最新 Token 进行嵌入与位置编码</span>
+    x = <span class="tok-builtin">embed</span>(token) + position(steps)
+    
+    <span class="tok-comment"># 2. 逐层前向传播：</span>
+    <span class="tok-keyword">for</span> layer <span class="tok-keyword">in</span> model.layers:
+        <span class="tok-comment"># 步骤 ①：仅计算当前单 Token 的投影向量 q, k, v（计算量极小）</span>
+        q, k, v = <span class="tok-builtin">project</span>(x)
+        
+        <span class="tok-comment"># 步骤 ②【核心机制】：将当前步的 k, v 增量追加至历史缓存，直接获取完整上下文历史</span>
+        K_all, V_all = caches[layer].append(k, v)  <span class="tok-comment"># 拼接历史已缓存的所有 Token K/V</span>
+        
+        <span class="tok-comment"># 步骤 ③：当前单个 q 与整段历史 K_all 做点积注意力，计算 FFN，累加残差</span>
+        <span class="tok-comment"># 硬件瓶颈：计算量虽小，但每一步都必须完整从显存重新加载全部模型权重与全部 KV Cache！</span>
+        x = layer.forward(q, K_all, V_all, x)
+    
+    <span class="tok-comment"># 3. 采样并流式吐字：</span>
+    token = <span class="tok-builtin">sample</span>(<span class="tok-builtin">project_to_vocab</span>(x))
+    steps += <span class="tok-number">1</span>
+    <span class="tok-builtin">yield</span> token  <span class="tok-comment"># 立即流式返回给用户界面</span></code></pre>
+</div>
+</div>
+<p>在 Decode 单步中，算术计算量极小（仅计算单个 Query 向量与历史 Key 矩阵的矩阵向量乘，而非大矩阵乘法）。然而，GPU 依然必须从高带宽显存（HBM）中完整读取整套模型权重矩阵以及累积的全部 KV Cache 数据。<strong>此时系统瓶颈由算力翻转为显存带宽（Memory Bandwidth）。</strong></p>
+<!-- 插图 3 -->
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Memory Bandwidth Bottleneck in Decode" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/5ee96e653e45a88c.png"/>
+</div>
+<figcaption><span class="fig-icon">图 3</span> Decode 阶段仅做少量矢量运算，却需频繁从显存搬运庞大权重与 KV Cache，导致带宽成为瓶颈</figcaption>
+</figure>
+<p>衡量该阶段的核心性能指标是 <strong>ITL（Inter-Token Latency，Token 间延迟）</strong>，即连续两个输出 Token 之间的时间间隔。保持较低的 ITL 是保证流式打字效果流畅的关键。</p>
+</section>
+<!-- 第 5 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">05.</span> KV Cache：原理与显存代价</h2>
+<p>若不采用 KV 缓存，每生成 1 个新 Token 都需要对整个逐步增长的历史序列重新计算注意力，生成 1,000 个 Token 将引发二次方级（$O(N^2)$）的巨大算力浪费。</p>
+<p>KV Cache 将每一层计算过的 K 和 V 状态保存于显存中，后续步骤仅需增量追加。在长文本生成场景下，KV Cache 可带来 <strong>5 倍以上的端到端推理提速</strong>。</p>
+<!-- 视频演示 -->
+<figure class="article-figure">
+<video controls="" poster="https://pbs.twimg.com/amplify_video_thumb/2071198581126815744/img/_KefewWir_oV4c7f.jpg" preload="metadata">
+<source src="https://video.twimg.com/amplify_video/2071198581126815744/vid/avc1/1256x732/e8_B27wjDc2X6qqN.mp4?tag=28" type="video/mp4"/>
+            您的浏览器不支持视频播放，请点击直接预览或使用现代浏览器。
+          </video>
+<figcaption><span class="fig-icon">视频</span> 开启与未开启 KV Cache 时的大模型推理速度直观对比（速度差异超 5 倍）</figcaption>
+</figure>
+<p>但这种加速并非毫无代价：<strong>Cache 显存占用随序列长度呈线性增长，且在每一层均独立分配</strong>。以 13B 参数量模型为例：</p>
+<ul>
+<li>每个 Token 平均消耗约 <strong>1 MB</strong> 显存；</li>
+<li>一个 4,000 Token 的上下文，仅 KV Cache 就需独占 <strong>4 GB</strong> 显存。</li>
+</ul>
+<p>这正是长上下文成本昂贵的核心原因：<strong>KV Cache 显存与 Batch 并发请求直接争抢物理显存</strong>。单个请求占用的 Cache 越多，单张 GPU 允许同时处理的并发请求数就越少。</p>
+<div class="callout-box question">
+<strong>🤔 经典面试思考题：</strong><br/>
+          使用 vLLM 部署推理模型时，遇到长推理序列频发 OOM（显存溢出）。若此时引入 KV Cache 压缩算法并驱逐了 90% 的缓存 Token，却发现物理显存占用未见下降且依然发生 OOM，原因何在？<br/>
+<small style="color:var(--text-light)">（提示：vLLM 的内存管理采用预分配机制，物理 Block 在释放后可能仍保留在预分配池中，或由于激活值峰值内存与分页碎片引发 OOM）</small>
+</div>
+<p>业界主流缓解策略包括：</p>
+<ol>
+<li><strong>Cache 量化</strong>：将 KV 精度压缩至 INT8 或 INT4；</li>
+<li><strong>滑动窗口注意力（Sliding Window Attention）</strong>：丢弃超出固定窗口的历史缓存；</li>
+<li><strong>GQA（分组查询注意力，Grouped-Query Attention）</strong>：多个 Query 头共用一组 K/V 头，大幅精简缓存张量数量；</li>
+<li><strong>PagedAttention</strong>：类似操作系统虚拟内存分页机制，以 Block 为单位动态分配 Cache，彻底消除了显存碎片。</li>
+</ol>
+</section>
+<!-- 第 6 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">06.</span> 围绕 Cache 重新设计注意力架构</h2>
+<p>量化与分页主要是将 KV Cache 视为“固定成本”来进行工程调度管理。而 DeepSeek 在其架构设计中采取了全新路径：<strong>直接重构注意力机制，使 Cache 在模型结构层面原生缩减。</strong></p>
+<!-- 插图 4 -->
+<figure class="article-figure">
+<div class="img-container">
+<img alt="DeepSeek V4 Attention Redesign" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/a40caa3fa61cd446.jpg"/>
+</div>
+<figcaption><span class="fig-icon">图 4</span> 采用结构级压缩注意力机制原生缩减 KV Cache 体积</figcaption>
+</figure>
+<p>该类方案通常采用两类压缩注意力的混合架构：</p>
+<ul>
+<li><strong>CSA（压缩稀疏注意力，Compressed Sparse Attention）</strong>：通过 Softmax 门控池化将 KV 状态压缩 4 倍，并在压缩后的 Token 上施加稀疏注意力；</li>
+<li><strong>HCA（高压缩注意力，Heavily Compressed Attention）</strong>：更为激进，将连续 128 个 Token 的 KV 状态聚合成单个压缩表征，在此之上执行密集注意力计算。</li>
+</ul>
+<p>在 1M 上下文长序列下，采用该架构的单 Token 推理 FLOPs 仅需 27%，而 KV Cache 占用仅为传统架构的 10%。单序列 KV Cache 从 83.9 GiB 锐减至 9.62 GiB（BF16 精度）。若进一步叠加 FP4/FP8 量化，显存占用还可再降低一半。</p>
+<p><strong>KV Cache 已经成为当前大模型架构演进中最核心的约束条件。</strong></p>
+</section>
+<!-- 第 7 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">07.</span> 权重量化（Quantization）</h2>
+<p>模型训练时必须依赖 FP32 或 BF16 保证梯度数值稳定性，但在推理阶段则完全不需要如此高的数值位宽。位宽压缩带来的显存收益严格呈线性比例：</p>
+<!-- 插图 5 -->
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Quantization Memory Footprint" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/7cae05909a4d4903.jpg"/>
+</div>
+<figcaption><span class="fig-icon">图 5</span> 7B 参数量模型在不同精度下的显存占用对比</figcaption>
+</figure>
+<table class="data-table">
+<thead>
+<tr>
+<th>精度格式</th>
+<th>单参数位宽</th>
+<th>7B 模型显存占用</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FP32</strong></td>
+<td>32-bit (4 Bytes)</td>
+<td>28 GB</td>
+<td>模型预训练与全精度基准校验</td>
+</tr>
+<tr>
+<td><strong>FP16 / BF16</strong></td>
+<td>16-bit (2 Bytes)</td>
+<td>14 GB</td>
+<td>标准微调与数据中心级原生部署</td>
+</tr>
+<tr>
+<td><strong>INT8</strong></td>
+<td>8-bit (1 Byte)</td>
+<td>7 GB</td>
+<td>主流服务端高性价比部署（几乎无损）</td>
+</tr>
+<tr>
+<td><strong>INT4</strong></td>
+<td>4-bit (0.5 Byte)</td>
+<td>3.5 GB</td>
+<td>端侧/笔记本 4~6GB 显存设备轻量运行</td>
+</tr>
+</tbody>
+</table>
+<p>现代量化方案（如 GPTQ、AWQ）引入逐通道缩放因子（Per-channel Scaling Factors），将有损压缩带来的准确率下降控制到极低。高质量的 INT4 模型在主流基准测试上与全精度模型差距通常仅在 1%~2% 以内。从 FP16 转为 INT8 通常可在基本无损的前提下使推理延迟减半，是部署中**收益率最高的优化手段**。</p>
+</section>
+<!-- 第 8 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">08.</span> 推理服务架构（Serving Infrastructure）</h2>
+<p>现代推理服务框架（如 vLLM、TensorRT-LLM、TGI）围绕 Prefill-Decode 循环，引入了多项关键工程优化：</p>
+<!-- 插图 6 -->
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Continuous Batching System" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/09eca78d8f3eff44.jpg"/>
+</div>
+<figcaption><span class="fig-icon">图 6</span> 连续批处理（Continuous Batching）在同一个计算调度步内交织不同请求的 Token</figcaption>
+</figure>
+<ul>
+<li>
+<strong>连续批处理（Continuous Batching）</strong>：在同一个 GPU 调度步内交叉执行多个请求的不同 Token，在访存受限的 Decode 阶段充分利用空闲算力。
+          </li>
+<li>
+<strong>推测解码（Speculative Decoding）</strong>：利用轻量小草稿模型先行投机生成多个候选 Token，再交由大模型单次前向并行校验。当命中率高时，可将多次串行 Decode 转化为单次并行验证。
+          </li>
+</ul>
+<!-- 插图 7 -->
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Speculative Decoding Verification" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/80adc57aac1c3725.jpg"/>
+</div>
+<figcaption><span class="fig-icon">图 7</span> 推测解码：小模型快速生成候选项，大模型单次批量并行验证</figcaption>
+</figure>
+<ul>
+<li>
+<strong>PagedAttention</strong>：以固定大小的虚拟内存块管理 KV Cache，消除碎片，使得单卡并发请求容量大幅扩充。
+          </li>
+</ul>
+<p>上述技术使单张 GPU 能够轻松服务数十个并发用户：Decode 阶段让大量算术计算单元闲置，而 Continuous Batching 恰好将其他请求的计算负载填入这些空闲空间中。</p>
+</section>
+<!-- 第 9 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">09.</span> 完整推理链路流程梳理</h2>
+<!-- 插图 8 -->
+<figure class="article-figure">
+<div class="img-container">
+<img alt="Full Inference Pipeline Map" decoding="async" loading="lazy" onclick="openLightbox(this.src)" src="/translations/images/1764333cf2c6113c.png"/>
+</div>
+<figcaption><span class="fig-icon">图 8</span> 大语言模型端到端推理数据链路完整示意图</figcaption>
+</figure>
+<ol>
+<li><strong>Tokenize（分词）</strong>：文本通过 BPE 转换为整型 Token ID 序列。</li>
+<li><strong>Embed（向量嵌入）</strong>：Token ID 查表转为连续向量，RoPE 注入旋转位置特征。</li>
+<li><strong>Prefill（预填充）</strong>：一次性并行穿过所有网络层，计算受限，构建初始 KV Cache 并产出首个 Token。</li>
+<li><strong>Decode 循环（自回归解码）</strong>：单步迭代：为新 Token 投影 Q 向量，在缓存的 K/V 上做注意力，经过 FFN 与采样，将最新 K/V 写入 Cache。访存受限。</li>
+<li><strong>Detokenize（逆分词）</strong>：将生成的 Token ID 反查还原为文本字符并以流式方式返回。</li>
+</ol>
+</section>
+<!-- 第 10 节 -->
+<section class="section-block">
+<h2 class="section-heading"><span class="heading-num">10.</span> 工程落地实践启示</h2>
+<div class="callout-box tip">
+<ul style="margin-bottom:0;">
+<li><strong>长 Prompt 消耗 TTFT（Prefill 耗时）</strong>；<strong>长 Output 消耗 ITL（Decode 耗时）</strong>，两者压迫完全不同的硬件单元。</li>
+<li><strong>上下文长度并不廉价</strong>：它会急剧膨胀 KV Cache 并直接扼杀系统批处理并发能力。</li>
+<li><strong>警惕算力利用率陷阱</strong>：满载服务时 GPU 计算单元利用率可能仍跌至 30%，因为真实瓶颈在显存带宽。盲目提升算力徒劳无功，加速显存、压缩 Cache 和改善批调度才是根治之道。</li>
+<li><strong>核心诊断法则</strong>：当用户反馈模型缓慢时，第一步先判定是<strong>响应首字慢（Prefill 受限，优化 TTFT）</strong>，还是<strong>流式输出慢（Decode 受限，优化 ITL）</strong>。</li>
+</ul>
+</div>
+</section>
+</article>
+</main>
+<!-- 划选文字时的浮动工具条 -->
+
+<!-- 批注抽屉侧边栏 -->
+
+<!-- 添加批注模态弹窗 -->
+
+<!-- 图片放大预览 Lightbox -->
+<div id="img-lightbox" onclick="closeLightbox()">
+<img alt="Zoomed Image" decoding="async" id="lightbox-img" loading="lazy" src=""/>
+</div>
+<!-- 底部 Toast 提示 -->
+<div id="toast-msg">提示信息</div>
+<!-- 交互逻辑脚本 -->
+
+<script defer="True" src="/translations/reader.js"></script><script defer="True" src="/vendor/katex/katex.min.js"></script><script defer="True" src="/vendor/katex/contrib/auto-render.min.js"></script><script defer="True" src="/translations/math.js"></script></body>
+</html>

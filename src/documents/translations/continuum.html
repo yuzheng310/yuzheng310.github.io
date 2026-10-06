@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Continuum 论文精读与中文全解：多轮 Agent 智能体调度与 KV Cache 驻留管理</title>
+<style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-light: #3b82f6;
+      --primary-subtle: #eff6ff;
+      --ink: #0f172a;
+      --text-muted: #475569;
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --border-line: #cbd5e1;
+      --accent-coral: #ef4444;
+      --accent-green: #10b981;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--ink);
+      background-color: var(--bg-page);
+      line-height: 1.8;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .layout {
+      display: flex;
+      max-width: 1440px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 32px 20px;
+      background: #ffffff;
+      border-right: 1px solid var(--border-line);
+    }
+
+    .sidebar-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--primary-subtle);
+    }
+
+    .sidebar-nav ul { list-style: none; }
+    .sidebar-nav li { margin-bottom: 8px; }
+    .sidebar-nav a {
+      display: block;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      line-height: 1.4;
+    }
+    .sidebar-nav a:hover {
+      color: var(--primary);
+      background: var(--primary-subtle);
+      transform: translateX(3px);
+    }
+
+    /* Content Area */
+    .content {
+      flex: 1;
+      padding: 48px 56px 80px;
+      max-width: 1050px;
+      background: #ffffff;
+      margin: 0 auto;
+      box-shadow: 0 0 20px rgba(0,0,0,0.02);
+    }
+
+    header.doc-header {
+      margin-bottom: 40px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border-line);
+    }
+
+    .tag-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary-subtle);
+      color: var(--primary);
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+
+    h1.doc-title {
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1.35;
+      color: var(--ink);
+      margin-bottom: 12px;
+    }
+
+    .meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+    .meta-bar span b { color: var(--ink); }
+
+    h2 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-top: 48px;
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid var(--border-line);
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 750;
+      color: var(--ink);
+      margin-top: 28px;
+      margin-bottom: 14px;
+    }
+
+    p {
+      margin-bottom: 16px;
+      color: #334155;
+      text-align: justify;
+    }
+
+    .callout {
+      background: var(--primary-subtle);
+      border-left: 4px solid var(--primary);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 24px 0;
+      font-size: 14.5px;
+    }
+
+    .callout.coral {
+      background: #fef2f2;
+      border-left-color: var(--accent-coral);
+    }
+
+    .callout-title {
+      font-weight: 800;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--primary);
+    }
+    .callout.coral .callout-title { color: var(--accent-coral); }
+
+    .figure-container {
+      background: #f8fafc;
+      border: 1px solid var(--border-line);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 32px 0;
+      text-align: center;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+    }
+
+    .figure-container img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      display: block;
+      margin: 0 auto 14px;
+    }
+
+    .figure-caption {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      font-weight: 600;
+    }
+    .figure-caption b { color: var(--primary); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border: 1px solid var(--border-line);
+    }
+
+    th {
+      background: #f1f5f9;
+      color: var(--primary);
+      font-weight: 750;
+    }
+
+    tr:nth-child(even) { background: #f8fafc; }
+
+    pre, code { font-family: var(--font-mono); }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 18px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 20px 0;
+    }
+
+    p code, li code {
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+
+    ul, ol { margin: 12px 0 20px 24px; color: #334155; }
+    li { margin-bottom: 8px; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .content { padding: 24px; }
+    }
+  </style>
+<link href="/vendor/katex/katex.min.css" rel="stylesheet"/></head>
+<body>
+<div class="layout">
+<!-- Sidebar -->
+<aside class="sidebar">
+<div class="sidebar-title">Continuum 研报导航</div>
+<nav class="sidebar-nav">
+<ul>
+<li><a href="#section-intro">1. 摘要与背景：为何现有引擎在 Agent 下失效？</a></li>
+<li><a href="#section-failure-modes">2. 传统推理引擎的两大失败模式</a></li>
+<li><a href="#section-workload">3. SWE-bench 等真实 Agent 负载解构</a></li>
+<li><a href="#section-system">4. Continuum 架构：显式 Pin 与动态 TTL</a></li>
+<li><a href="#section-ttl-model">5. TTL 数学模型：重算代价 vs 排队代价</a></li>
+<li><a href="#section-evaluation">6. 端到端实验：8.18x 延迟暴降</a></li>
+<li><a href="#section-connection">7. 个人思考：与会话 KV 管理的联系</a></li>
+</ul>
+</nav>
+</aside>
+<!-- Content -->
+<main class="content">
+<header class="doc-header">
+<div class="tag-banner">
+<span>🏛️ UC Berkeley / Stanford 团队联合巨作</span>
+<span>·</span>
+<span>arXiv 预印本</span>
+<span>·</span>
+<span>arXiv: 2511.02230</span>
+</div>
+<h1 class="doc-title">Continuum: Efficient and Robust Multi-Turn LLM Agent Scheduling with KV Cache Time-to-Live</h1>
+<h2 style="font-size: 18px; margin: 0; border: none; padding: 0; color: var(--text-muted); font-weight: 600;">
+        基于 KV Cache 租约驻留（TTL）的高效鲁棒多轮智能体调度系统 —— 中文精读
+      </h2>
+<div class="meta-bar">
+<span>作者：<b>Hanchen Li, Runyuan He, Joseph Gonzalez, Ion Stoica 等（伯克利 Sky Computing 实验室）</b></span>
+<span>基准场景：<b>SWE-bench, Mini-SWE-agent, BFCL Function Calling</b></span>
+</div>
+</header>
+<!-- Section 1 -->
+<section id="section-intro">
+<h2>1. 摘要与核心立论（Abstract &amp; Problem Statement）</h2>
+<p>
+        在现代大语言模型服务系统中，KV Cache 的淘汰策略（Eviction Policy）是决定系统性能的命脉。
+        传统的推理引擎（如 vLLM、SGLang、TGI）都内嵌了一个默认假设：<strong>一旦一个请求的解码结束（生成完毕），它的 KV Cache 就不再紧急，可以直接驱逐（Evict）以腾出显存给新请求。</strong>
+        论文将这种传统策略正式命名为：<strong>“轮次结束驱逐制（End-of-Turn Eviction）”</strong>。
+      </p>
+<div class="callout coral">
+<div class="callout-title">💥 致命缺陷：End-of-Turn Eviction 摧毁了 Agent 性能！</div>
+<p>
+          在普通人机聊天中，用户看屏幕、敲键盘需要十秒甚至几十秒，驱逐 KV Cache 影响不大。
+          但在以 <strong>软件工程智能体（SWE-bench / Devin）、电脑操作（Computer Use）和科研智能体</strong> 为代表的新型 Agent 负载中，
+          工作流是交替进行的：<strong>(1) 模型推理一步生成动作 $\rightarrow$ (2) 调用外部工具（如执行 bash 命令、git diff） $\rightarrow$ (3) 将工具结果作为新观察输入，立即开启下一步推理。</strong><br/>
+          外部工具往往在 <strong>0.5 秒到 2 秒内</strong> 就会返回结果！
+          如果系统在第 (1) 步结束时把它的 KV Cache 扔掉，当第 (3) 步在 1 秒后到来时，系统必须从头重新跑一遍长达几千上万字的历史 Prefill，或者从 CPU 重新搬运。
+        </p>
+</div>
+</section>
+<!-- Section 2 -->
+<section id="section-failure-modes">
+<h2>2. 传统推理引擎的两大失败模式（Failure Modes）</h2>
+<p>
+        论文在第 1 章和第 2 章用极其生动的图示，揭露了现有大模型服务系统在面对 Agent 时必然遭遇的<strong>两大惨败模式</strong>：
+      </p>
+<div class="figure-container">
+<img alt="Two main failure modes of prior agent-serving systems" decoding="async" loading="lazy" src="/translations/continuum/figure-1.png"/>
+<div class="figure-caption">
+<b>图 1：以往 Agent 服务系统的两大失败模式（论文图 Figure 1）</b><br/>
+          红色方块代表系统设计缺陷引发的额外巨大开销。
+        </div>
+</div>
+<h3>① 失败模式 A（原始无状态 / 朴素 vLLM）：重复 Prefill 算力黑洞</h3>
+<p>
+        模型吐出 <code>bash: git diff</code> 命令后，请求在系统内被当成已完成，KV Cache 当场被回收。
+        1 秒后工具返回，系统把前面 10 轮的几万字上下文重新送入 GPU。
+        这不仅导致 TTFT（首字延迟）暴涨，而且 <strong>GPU 的算力全在反复做毫无意义的矩阵乘法</strong>。
+      </p>
+<h3>② 失败模式 B（即使支持了 CPU 卸载）：累积性每轮排队等待（Per-Turn Queueing Delay）</h3>
+<p>
+        这是论文最具突破性的洞察！很多系统（如 InferCept、LMCache）以为“只要把 KV 存到 CPU 上再拉回来就万事大吉了”。
+        但论文证明：<strong>一旦你在轮次结束时把请求从 GPU 显存驱逐，灾难依然会发生！</strong>
+</p>
+<ul>
+<li>当工具执行完毕，该请求作为一个“新轮次”回到推理引擎时，哪怕可以从 CPU 恢复，<strong>它也必须重新在 WAITING 队列里老老实实排队，等待其他正在跑的请求把 GPU 显存腾出来！</strong></li>
+<li>一个 Agent 任务通常有 10 到 30 个轮次，<strong>每一轮都在承受漫长的重新排队等待（Per-Turn Queueing Delay）！</strong></li>
+<li>如图 2 所示，这个等待时间在每轮不断累加叠加，端到端任务完成时间（JCT）几乎和没有任何缓存的朴素 vLLM 一样惨烈！</li>
+</ul>
+<div class="figure-container">
+<img alt="Per-program queueing delay under CPU offloading" decoding="async" loading="lazy" src="/translations/continuum/figure-2.png"/>
+<div class="figure-caption">
+<b>图 2：CPU 卸载模式下的每轮累积排队延迟（论文图 Figure 4）</b><br/>
+          证明了单纯算重载成本是不够的，被驱逐出显存后重新排队（Waiting Time）在多轮中不断放大。
+        </div>
+</div>
+</section>
+<!-- Section 3 -->
+<section id="section-workload">
+<h2>3. 真实 Agent 负载解构（SWE-bench 真实 Trace 统计）</h2>
+<p>
+        伯克利团队深度采集并剖析了 <strong>100 个 Mini-SWE-agent 解决 SWE-Bench 真实代码定位修复</strong> 和 <strong>100 个 BFCL 工具调用</strong> 的真实追踪轨迹：
+      </p>
+<div class="figure-container">
+<img alt="An illustrative trace from SWE-Bench" decoding="async" loading="lazy" src="/translations/continuum/figure-3.png"/>
+<div class="figure-caption">
+<b>图 3：SWE-Bench 代码智能体的真实交互轨迹示例（论文图 Figure 3）</b><br/>
+          展示了 Agent 如何一步步反复与外部 Linux 环境交替交互。
+        </div>
+</div>
+<table>
+<thead>
+<tr>
+<th>测试数据集</th>
+<th>交互轮次数 (Turns)</th>
+<th>外部工具执行耗时 (ms)</th>
+<th>每个任务总消耗 Token 数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SWE-Bench (代码智能体)</strong></td>
+<td><strong>平均 10.9 轮</strong> (标准差 2.1)</td>
+<td><strong>平均 925 ms</strong> (大部分在 1 秒以内)</td>
+<td><strong>平均 70,126 tokens</strong></td>
+</tr>
+<tr>
+<td><strong>BFCL v4 (网络搜索智能体)</strong></td>
+<td><strong>平均 6.3 轮</strong> (标准差 2.3)</td>
+<td><strong>平均 1,923 ms</strong> (约 2 秒)</td>
+<td><strong>平均 93,256 tokens</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="figure-container">
+<img alt="Tokens vs Steps in Agentic Workloads" decoding="async" loading="lazy" src="/translations/continuum/figure-4.png"/>
+<div class="figure-caption">
+<b>图 4：随着交互步数增加，后续轮次预期剩余 Token 数量显著减少（论文图 Figure 2）</b><br/>
+          证明了越靠后的轮次，沉没成本越高，越接近完成，越应该优先保障其连续性！
+        </div>
+</div>
+</section>
+<!-- Section 4 -->
+<section id="section-system">
+<h2>4. Continuum 系统设计：显式锁定（Pinning）与动态租约（TTL）</h2>
+<p>
+        为彻底打破上述僵局，伯克利团队在 vLLM 之上设计了 <strong>Continuum</strong> 引擎：
+      </p>
+<div class="figure-container">
+<img alt="System Overview of Continuum" decoding="async" loading="lazy" src="/translations/continuum/figure-5.png"/>
+<div class="figure-caption">
+<b>图 5：Continuum 系统整体架构与工作流（论文图 Figure 5）</b><br/>
+          展示了工具调用解析器、基于租约的 Pin Request 机制、以及调度器协调逻辑。
+        </div>
+</div>
+<h3>系统核心机制</h3>
+<ol>
+<li>
+<strong>跨轮次程序标识符（<code>program_id</code>）</strong>：<br/>
+          客户端在请求中携带 <code>program_id</code>，服务端引擎借此识别多轮 Agent 会话，将离散的 HTTP 请求串联为一个生命周期实体。
+        </li>
+<li>运行时按 TTL 显式保留工具调用期间的 KV 状态，在租约到期后允许回收。</li>
+<li>
+<strong>动态租约倒计时（Time-to-Live, TTL）</strong>：<br/>
+          系统并不是无限期死锁显存（防止工具卡死导致 OOM），而是为这个锁定设定一个倒计时 $\tau^*$。
+          如果工具在 $\tau^*$ 内返回，下一轮**直接以 0 排队、0 重算在 GPU 上满血恢复执行**；如果超时，系统才安全回收显存作为兜底。
+        </li>
+</ol>
+</section>
+<!-- Section 5 -->
+<section id="section-ttl-model">
+<h2>5. TTL 核心数学模型：占显存排队的代价 vs 重算的代价</h2>
+<p>
+        Continuum 最硬核的部分在于它建立了一个**数学成本效益分析模型**：
+      </p>
+<ul>
+<li><strong>收益（Benefit）</strong>：保留 KV 锁定时，如果工具在此期间返回，不仅省去了重算 Prefill / CPU 重新载入的开销 $T_{reload}$，还彻底消除了重新进队列的排队惩罚 $T_{queue}$；</li>
+<li><strong>代价（Cost）</strong>：在这段时间里，显存被锁定，可能会让其他新进来的普通请求多等待一小段时间；</li>
+<li><strong>最优决策</strong>：通过求解微积分极值，动态为每个工具计算出最优的租约时间 $\tau^*$，使全局任务的端到端完成时间（JCT）达到理论最小。</li>
+</ul>
+</section>
+<!-- Section 6 -->
+<section id="section-evaluation">
+<h2>6. 端到端实验实测：最高 8.18 倍的延迟暴降</h2>
+<p>
+        在 Llama-3.1-8B/70B、多种 GPU（A100/H100）以及真实 SWE-bench 环境中，论文进行了极其详尽的对比：
+      </p>
+<div class="figure-container">
+<img alt="70B comparison on SWE-bench" decoding="async" loading="lazy" src="/translations/continuum/figure-6.png"/>
+<div class="figure-caption">
+<b>图 6：Llama-3.1-70B 在 SWE-bench 上的任务完成耗时对比（论文图 Figure 12）</b><br/>
+          纵轴为平均任务耗时（秒，越低越好），横轴为并发负载。
+        </div>
+</div>
+<div class="figure-container">
+<img alt="Pinning ablation study on SWE-bench" decoding="async" loading="lazy" src="/translations/continuum/figure-7.png"/>
+<div class="figure-caption">
+<b>图 7：消融实验：显式锁定（Pinning）对整体任务速度的决定性贡献（论文图 Figure 15）</b><br/>
+          对比了无 Pin、无限 Pin 以及 Continuum 自适应 Pin 的性能。
+        </div>
+</div>
+<h3>评测硬核数据总结：</h3>
+<ul>
+<li><strong>端到端完成耗时</strong>：在 SWE-bench 真实任务中，Continuum 相比传统无状态系统实现了 <strong>最高 8.18 倍的端到端延迟降低</strong>！</li>
+<li><strong>系统吞吐量</strong>：在高并发工具调用下，吞吐量提升了 <strong>1.10x 到 3.22x</strong>；</li>
+<li><strong>消融实验结论</strong>：<strong>显式锁定（Pinning）是整个提速的核心支柱</strong>，单纯靠无状态被动缓存，在真实工具调用面前会被彻底击穿。</li>
+</ul>
+</section>
+<!-- Section 7 -->
+<section id="section-connection"><h2>7. 个人思考：与会话 KV 管理的联系</h2><p>以下是阅读后的个人思考，不属于论文原文。</p><p>在 Qwen3 Runtime 中，我关注工具等待期间的会话状态保存、前缀校验与增量恢复。只有前缀匹配且缓存有效时，后续请求才能复用历史 KV；显存压力、回收策略和传输成本都会影响收益。</p><p>这与论文讨论的缓存生命周期问题有关，但实现范围和评测条件不同。Qwen3 Runtime 面向单 GPU 的 Agentic Rollout 推理层；论文中的集群架构、调度算法与性能结果不能直接视为该项目已实现或已验证的能力。</p><p>具体实现与实验边界见 <a href="/projects/qwen3-runtime/">Qwen3 Runtime 项目记录</a>。</p></section>
+</main>
+</div>
+<script defer="True" src="/vendor/katex/katex.min.js"></script><script defer="True" src="/vendor/katex/contrib/auto-render.min.js"></script><script defer="True" src="/translations/math.js"></script></body>
+</html>

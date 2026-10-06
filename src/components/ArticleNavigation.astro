@@ -1,0 +1,24 @@
+<nav class="article-navigation" aria-label="文章目录" hidden>
+  <details><summary>本文目录 <span aria-hidden="true">＋</span></summary><ol></ol></details>
+</nav>
+<script>
+  const navigation = document.querySelector<HTMLElement>('.article-navigation');
+  const list = navigation?.querySelector('ol');
+  const headings = [...document.querySelectorAll<HTMLElement>('.prose h2')].filter(heading => heading.textContent?.trim() !== '目录');
+  if (navigation && list && headings.length > 1) {
+    headings.forEach((heading, index) => {
+      if (!heading.id) {
+        let id = `section-${index + 1}`;
+        while (document.getElementById(id)) id += '-section';
+        heading.id = id;
+      }
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = `#${heading.id}`;
+      link.textContent = heading.textContent;
+      item.append(link);
+      list.append(item);
+    });
+    navigation.hidden = false;
+  }
+</script>

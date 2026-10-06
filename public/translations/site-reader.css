@@ -1,0 +1,19 @@
+#site-reader-bar{position:relative;z-index:1;background:#fafaf7;color:#252c29;border-bottom:1px solid #dedfd8;padding:18px max(20px,calc((100% - 1100px)/2));font:13px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:0;text-align:left}
+#site-reader-bar nav{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;margin:0;padding:0;border:0;font-size:13px}
+#site-reader-bar a{color:#35644f;text-decoration:none;background:transparent;font-weight:500}
+#site-reader-bar a:hover{text-decoration:underline}
+#site-reader-bar a:focus-visible{outline:2px solid #35644f;outline-offset:4px}
+#site-reader-bar nav>a:first-child{font-weight:700;margin-right:auto;color:#252c29}
+#site-reader-bar p{font:12px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#646e68;margin:7px 0 0;padding:0;text-align:left}
+#site-reader-bar .reader-tags{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 0}
+#site-reader-bar .reader-tags a{font-size:11px;background:#eef1e9;border:1px solid #dedfd8;border-radius:3px;padding:2px 8px}
+main,article,.content,.main-wrapper{min-width:0}
+img{max-width:100%;height:auto}
+.katex-display{overflow-x:auto;overflow-y:hidden;padding:5px 0;max-width:100%}
+figure,pre{max-width:100%}
+@media(max-width:760px){table{display:block;max-width:100%;overflow-x:auto}pre{overflow-x:auto}main,article{overflow-wrap:anywhere}svg{max-width:100%}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}*{transition:none!important}}
+@media print{#site-reader-bar{display:none}}
+/* Keep long inline equations inside the reading column on narrow screens. */
+.katex{display:inline-block;max-width:100%;overflow-x:auto;overflow-y:hidden;vertical-align:middle}
+.katex-display>.katex{display:block}

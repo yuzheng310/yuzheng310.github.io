@@ -1,0 +1,7 @@
+---
+interface Props { tags: string[]; }
+const { tags } = Astro.props;
+---
+<ul class="note-tags" aria-label="文章标签">
+  {tags.map(tag => <li><a class:list={['note-tag', { 'translation-tag': tag === '翻译' }]} href={`/blog/tags/${encodeURIComponent(tag)}/`}>{tag}</a></li>)}
+</ul>

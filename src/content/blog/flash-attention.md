@@ -2,6 +2,7 @@
 title: 深入浅出 FlashAttention：快如闪电的精确注意力机制与 IO 感知计算
 description: 从第一性原理、GPU 显存金字塔到 Online Softmax 动态分块与反向重计算的全景图解推导。
 date: 2026-09-15
+tags: ["翻译", "FlashAttention", "GPU 优化", "注意力机制"]
 repoURL: https://github.com/Dao-AILab/flash-attention
 ---
 

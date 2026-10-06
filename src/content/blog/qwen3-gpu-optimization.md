@@ -2,6 +2,7 @@
 title: GPU 算子与执行优化：从 26 到 100 token/s 的推理引擎破茧之路
 description: 使用 Nsight Systems 定位同步、传输与发射瓶颈，集成 FlashInfer 分页注意力、融合算子与 Decode CUDA Graph 的全景深度复盘。
 date: 2026-09-15
+tags: ["大模型推理", "GPU 优化", "CUDA Graph", "性能分析"]
 repoURL: https://github.com/yuzheng310/qwen3-runtime
 ---
 
