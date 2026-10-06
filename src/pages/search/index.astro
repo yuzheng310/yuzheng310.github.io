@@ -1,0 +1,20 @@
+---
+import Portfolio from '../../layouts/Portfolio.astro';
+---
+<Portfolio title="搜索 · yuzheng" description="搜索本站的项目、工程笔记、翻译与论文精读。" active="search">
+  <header class="page-heading"><p class="eyebrow">FIND SOMETHING</p><h1>搜索<span class="accent">。</span></h1><p>一个关键词，找到一条思路。搜索项目和笔记的完整正文。</p></header>
+  <link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+  <script is:inline src="/pagefind/pagefind-ui.js"></script>
+  <div id="search"></div>
+  <p class="search-hint">可以试试「KV Cache」「推理」「CUDA」或「迁移」。</p>
+  <noscript><p>全文搜索需要 JavaScript。也可以直接浏览<a href="/blog/">笔记时间线与标签</a>。</p></noscript>
+  <script is:inline>
+    if (window.PagefindUI) {
+      new PagefindUI({ element: '#search', showSubResults: true, showImages: false, translations: { placeholder: '搜索项目与笔记…', clear_search: '清空', load_more: '加载更多', search_label: '搜索项目与笔记', zero_results: '没有找到「[SEARCH_TERM]」的结果', many_results: '找到 [COUNT] 条相关结果', one_result: '找到 1 条相关结果', searching: '正在搜索…' } });
+    } else {
+      const message = document.createElement('p');
+      message.textContent = '搜索暂不可用，请稍后刷新；你也可以通过笔记标签浏览文章。';
+      document.getElementById('search').append(message);
+    }
+  </script>
+</Portfolio>

@@ -51,6 +51,7 @@
     .glow-warm { left: -360px; bottom: -330px; }
     .light-specks i:nth-child(n+4) { display: none; }
     .pointer-light { display: none; }
+    .effects-toggle .toggle-label { display: none; }
     .effects-toggle { right: 10px; bottom: 10px; font-size: 10px; }
   }
   @media (prefers-reduced-motion: reduce) { .effects-toggle, .pointer-light { display: none; } }
@@ -61,15 +62,19 @@
   const toggle = document.querySelector<HTMLButtonElement>('.effects-toggle');
   if (effects && toggle) {
     let paused = false;
+    try { paused = localStorage.getItem('site-motion-paused') === 'true'; } catch {}
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => { document.body.dataset.motionPaused = String(paused || document.hidden || reduced.matches); };
-    toggle.hidden = false;
-    toggle.addEventListener('click', () => {
-      paused = !paused;
+    const update = () => {
+      document.body.dataset.motionPaused = String(paused || document.hidden || reduced.matches);
       toggle.setAttribute('aria-pressed', String(paused));
       toggle.setAttribute('aria-label', paused ? '播放首页动效' : '暂停首页动效');
       toggle.querySelector('.toggle-label')!.textContent = paused ? '播放动效' : '暂停动效';
       toggle.querySelector('[aria-hidden]')!.textContent = paused ? '▷' : 'Ⅱ';
+    };
+    toggle.hidden = false;
+    toggle.addEventListener('click', () => {
+      paused = !paused;
+      try { localStorage.setItem('site-motion-paused', String(paused)); } catch {}
       update();
     });
     document.addEventListener('visibilitychange', update);

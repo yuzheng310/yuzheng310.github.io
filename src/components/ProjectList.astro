@@ -1,0 +1,8 @@
+---
+import { projects } from '../data/projects';
+---
+<div class="selected-projects">{projects.map(project => <article class="project-row">
+  <div class="project-number">{project.number}<span>{project.field}</span></div>
+  <div class="project-body"><h3><a href={`/projects/${project.slug}/`}>{project.title}<span aria-hidden="true">↗</span></a></h3><p>{project.description}</p><ul class="topic-list" aria-label="项目重点">{project.topics.map(topic => <li>{topic}</li>)}</ul></div>
+  <div class="project-actions"><a href={`/projects/${project.slug}/`} aria-label={`阅读 ${project.title} 项目记录`}>项目记录 <span aria-hidden="true">→</span></a>{project.repo && <a href={project.repo}>公开源码 ↗</a>}</div>
+</article>)}</div>

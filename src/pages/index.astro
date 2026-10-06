@@ -1,28 +1,32 @@
 ---
 import { getCollection } from 'astro:content';
 import Portfolio from '../layouts/Portfolio.astro';
-const notes = (await getCollection('blog', ({ data }) => !data.draft)).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf() || a.slug.localeCompare(b.slug)).slice(0, 5);
-const projects = [
-  { slug: 'qwen3-runtime', number: '01', field: '推理系统', title: 'Qwen3 Runtime', description: '面向多轮 Agent 的单 GPU 推理运行时。从请求调度、分页 KV 到会话暂停与恢复，沿完整执行路径分析性能。', topics: ['请求调度', 'KV 状态管理', 'GPU 执行优化'], repo: 'https://github.com/yuzheng310/qwen3-runtime' },
-  { slug: 'repocompass', number: '02', field: 'Agent 后训练', title: 'RepoCompass', description: '仓库级代码定位 Agent 后训练系统。基于 CodeScout，围绕文件与函数定位构建任务环境、可验证奖励与训练流程。', topics: ['任务环境与奖励', 'RFT → GSPO', '训练工程'], repo: null },
-  { slug: 'database', number: '03', field: '数据库系统', title: 'DynamoDB 兼容与在线迁移', description: '实习期间参与的团队项目。负责兼容层与配套迁移工具的架构和研发，处理 API 语义、增量同步与一致性校验。', topics: ['API 语义兼容', '在线迁移', '一致性校验'], repo: null },
-];
+import ProjectList from '../components/ProjectList.astro';
+const notes = (await getCollection('blog', ({ data }) => !data.draft)).sort((a,b) => b.data.date.valueOf()-a.data.date.valueOf() || a.slug.localeCompare(b.slug));
+const selected = ['session-kv', 'qwen3-gpu-optimization', 'performance-evidence'].map(slug => notes.find(note => note.slug === slug)!);
+const recent = notes.filter(note => note.data.tags.includes('翻译')).slice(0,3);
 ---
 <Portfolio wide homeEffects>
   <section class="intro" aria-labelledby="intro-title">
-    <p class="eyebrow">你好，我是 yuzheng</p>
-    <h1 id="intro-title">写代码，<br />研究系统如何工作<span class="accent">。</span></h1>
-    <p class="intro-description">我关注大模型推理、代码 Agent 和数据库系统。<br class="wide-only" />从执行效率到状态与一致性，记录自己做过的工程、遇到的问题和做出的取舍。</p>
-    <div class="intro-links"><a class="primary-link" href="#projects">了解我的项目 <span aria-hidden="true">↓</span></a><a href="/about/">更多关于我 <span aria-hidden="true">↗</span></a><a href="https://github.com/yuzheng310">GitHub <span aria-hidden="true">↗</span></a></div>
-    <div class="focus-line"><span>关注方向</span><p>LLM Inference <i aria-hidden="true">/</i> Code Agents <i aria-hidden="true">/</i> Database Systems</p></div>
+    <p class="eyebrow hero-greeting"><span class="status-dot" aria-hidden="true"></span>你好，我是</p>
+    <h1 id="intro-title">yuzheng<span class="accent">.</span></h1>
+    <p class="hero-statement">写代码，研究系统如何工作。</p>
+    <p class="intro-description">关注大模型推理、代码 Agent 与数据库。<br />在实现中理解系统，在记录中沉淀思考。</p>
+    <div class="intro-links"><a class="primary-link" href="#projects">了解我的项目 <span aria-hidden="true">↓</span></a><a class="secondary-link" href="/blog/">阅读技术笔记 <span aria-hidden="true">↗</span></a></div>
+    <p class="hero-footnote">LLM INFERENCE <span>/</span> CODE AGENTS <span>/</span> DATABASE SYSTEMS</p>
   </section>
   <section class="home-section" id="projects" aria-labelledby="projects-title">
-    <div class="section-heading"><div><p class="eyebrow">SELECTED WORK</p><h2 id="projects-title">从项目认识我</h2></div><a href="/projects/">全部项目 <span aria-hidden="true">↗</span></a></div>
-    <div class="selected-projects">{projects.map(project => <article class="project-row"><div class="project-number">{project.number}<span>{project.field}</span></div><div class="project-body"><h3><a href={`/projects/${project.slug}/`}>{project.title}<span aria-hidden="true">↗</span></a></h3><p>{project.description}</p><ul class="topic-list" aria-label="项目重点">{project.topics.map(topic => <li>{topic}</li>)}</ul></div><div class="project-actions"><a href={`/projects/${project.slug}/`} aria-label={`阅读 ${project.title} 项目记录`}>项目记录 <span aria-hidden="true">→</span></a>{project.repo && <a href={project.repo}>公开源码 ↗</a>}</div></article>)}</div>
+    <div class="section-heading"><div><p class="eyebrow">01 / SELECTED WORK</p><h2 id="projects-title">把想法，放进真实系统。</h2></div><a href="/projects/">全部项目 <span aria-hidden="true">↗</span></a></div>
+    <ProjectList />
   </section>
   <section class="home-section" aria-labelledby="notes-title">
-    <div class="section-heading"><div><p class="eyebrow">NOTES & IDEAS</p><h2 id="notes-title">实现之外，再想一步</h2></div><a href="/blog/">全部笔记 <span aria-hidden="true">↗</span></a></div>
-    <div class="note-list">{notes.map(note => <a href={`/blog/${note.slug}/`}><time datetime={note.data.date.toISOString()}>{note.data.date.toISOString().slice(0, 10).replaceAll('-', '.')}</time><span class="home-note-content"><span>{note.data.title}</span><span class="home-note-tags">{note.data.tags.map(tag => <span class:list={{ 'translation-label': tag === '翻译' }}>{tag}</span>)}</span></span><span class="note-arrow" aria-hidden="true">↗</span></a>)}</div>
+    <div class="section-heading"><div><p class="eyebrow">02 / FIELD NOTES</p><h2 id="notes-title">实现之外，再想一步。</h2></div><a href="/blog/">全部笔记 <span aria-hidden="true">↗</span></a></div>
+    <p class="section-intro">关于执行路径、状态管理与性能取舍的一些记录。</p>
+    <div class="note-list">{selected.map(note => <a href={`/blog/${note.slug}/`}><time datetime={note.data.date.toISOString()}>{note.data.date.toISOString().slice(0,10).replaceAll('-','.')}</time><span class="home-note-content"><span class="note-title">{note.data.title}</span><span class="note-description">{note.data.description}</span></span><span class="note-arrow" aria-hidden="true">↗</span></a>)}</div>
   </section>
-  <aside class="currently"><p class="eyebrow">正在关注</p><p>会话 KV 的生命周期、CPU offload 的适用边界，<br class="wide-only" />以及推理层与上层 Agent 的职责划分。</p><a href="/rss.xml">通过 RSS 订阅更新 <span aria-hidden="true">↗</span></a></aside>
+  <section class="home-section" aria-labelledby="reading-title">
+    <div class="section-heading"><div><p class="eyebrow">03 / READING & TRANSLATION</p><h2 id="reading-title">沿着别人的思路，深入一点。</h2></div><a href="/blog/tags/翻译/">翻译与精读 <span aria-hidden="true">↗</span></a></div>
+    <div class="reading-list">{recent.map(note => <a href={`/blog/${note.slug}/`}><span class="reading-kicker">{note.data.tags.includes('论文') ? '论文精读' : '翻译与整理'}</span><h3>{note.data.title}</h3><p>{note.data.description}</p><span class="reading-arrow" aria-hidden="true">↗</span></a>)}</div>
+  </section>
+  <aside class="currently"><div><p class="eyebrow">KEEP EXPLORING</p><h2>系统很大，慢慢弄明白。</h2><p>继续研究会话 KV、CPU offload，以及推理层与 Agent 的边界。</p></div><div class="connect-links"><a href="/about/">关于我 ↗</a><a href="https://github.com/yuzheng310">GitHub ↗</a><a href="/rss.xml">订阅 RSS ↗</a></div></aside>
 </Portfolio>

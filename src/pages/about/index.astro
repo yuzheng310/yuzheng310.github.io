@@ -1,4 +1,15 @@
 ---
 import Portfolio from '../../layouts/Portfolio.astro';
 ---
-<Portfolio title="关于 · yuzheng" active="about"><header class="page-heading"><h1>关于</h1></header><div class="prose about-body"><p>我是 yuzheng，关注大模型推理、代码 Agent 和数据库系统。</p><p>这个网站用来整理做过的工作，以及实现过程中值得保留的思考。希望把一个项目为什么做、如何实现、有哪些限制，尽量写清楚。</p><h2>目前的工作</h2><ul><li><a href="/projects/qwen3-runtime/">Qwen3 Runtime</a>：围绕单 GPU 推理的执行路径、会话状态和性能测量。</li><li><a href="/projects/repocompass/">RepoCompass</a>：围绕代码定位任务的环境、奖励、数据与 Agent 后训练。</li><li><a href="/projects/database/">数据库兼容与在线迁移</a>：实习期间的团队项目，关注 API 语义、迁移衔接与一致性。</li></ul><h2>最近在整理</h2><p>会话 KV 生命周期、CPU offload 的适用边界，以及推理层和上层 Agent 的职责划分。</p><h2>其他地方</h2><p>代码与公开项目可以在 <a href="https://github.com/yuzheng310">GitHub</a> 找到。网站笔记也提供 <a href="/rss.xml">RSS</a>。</p></div></Portfolio>
+<Portfolio title="关于 · yuzheng" description="关于 yuzheng，以及这个记录推理系统、代码 Agent 与数据库工程的网站。" active="about">
+  <header class="page-heading"><p class="eyebrow">A LITTLE ABOUT ME</p><h1>你好，我是 yuzheng<span class="accent">。</span></h1><p>喜欢写代码，也喜欢追问代码背后的系统。</p></header>
+  <div class="prose about-body">
+    <p>我关注大模型推理、代码 Agent 和数据库系统。比起只看到一个结果，我更想弄清楚：一次请求经过了什么，状态保存在哪里，性能又被什么限制。</p>
+    <p>这个网站用来整理做过的工作，以及实现过程中值得保留的思考。希望把一个项目为什么做、如何实现、有哪些限制，尽量写清楚。</p>
+    <h2>我在做什么</h2>
+    <ul><li><a href="/projects/qwen3-runtime/">Qwen3 Runtime</a>：围绕单 GPU 推理的执行路径、会话状态和性能测量。</li><li><a href="/projects/repocompass/">RepoCompass</a>：基于 CodeScout，围绕代码定位任务的环境、奖励、数据与 Agent 后训练。</li><li><a href="/projects/database/">数据库兼容与在线迁移</a>：实习期间的团队项目，关注 API 语义、迁移衔接与一致性。</li></ul>
+    <h2>为什么写下来</h2><p>工程笔记记录自己的实现与取舍；翻译和论文精读帮助我理解更大的技术背景。两者相互补充，也都保留来源、实验条件和适用边界。</p>
+    <h2>其他地方</h2><p>代码与公开项目在 <a href="https://github.com/yuzheng310">GitHub ↗</a>。如果想跟进这里的更新，可以订阅 <a href="/rss.xml">RSS</a>。</p>
+    <h2 id="colophon">关于本站</h2><p>基于 <a href="https://astro.build/">Astro</a> 构建，部署于 GitHub Pages。网站由 <a href="https://github.com/markhorn-dev/astro-nano">Astro Nano</a> 起步，页面层次与交互参考 <a href="https://github.com/markhorn-dev/astro-sphere">Astro Sphere</a>，中文阅读排版参考 <a href="https://github.com/radishzzz/astro-theme-retypeset">Retypeset</a>。</p><p>使用 Inter、Lora 与思源宋体；全文搜索由 <a href="https://pagefind.app/">Pagefind</a> 提供。文章支持独立调整正文与代码字号，动效尊重系统的减少动态效果设置。</p>
+  </div>
+</Portfolio>

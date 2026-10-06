@@ -4,7 +4,7 @@
     <div class="font-control" data-font="text">
       <span>正文</span>
       <button type="button" data-step="-1" aria-label="减小正文字号">−</button>
-      <output aria-label="当前正文字号" aria-live="polite">16px</output>
+      <output aria-label="当前正文字号" aria-live="polite">18px</output>
       <button type="button" data-step="1" aria-label="增大正文字号">＋</button>
     </div>
     <div class="font-control" data-font="code">
@@ -34,7 +34,7 @@
       }
     } catch { /* Reading controls also work when storage is unavailable. */ }
 
-    const currentSize = (kind: FontKind) => sizes[kind] ?? (kind === 'text' ? (mobile.matches ? 15 : 16) : (mobile.matches ? 13 : 14));
+    const currentSize = (kind: FontKind) => sizes[kind] ?? (kind === 'text' ? (mobile.matches ? 17 : 18) : (mobile.matches ? 13 : 14));
     const updateControls = () => {
       for (const kind of ['text', 'code'] as const) {
         const row = settings.querySelector<HTMLElement>(`[data-font="${kind}"]`)!;

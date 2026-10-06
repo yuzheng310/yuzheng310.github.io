@@ -1,11 +1,15 @@
 ---
 import '../styles/portfolio.css';
+import ReadingTools from '../components/ReadingTools.astro';
+import '@fontsource/lora/latin-400.css';
+import '@fontsource/lora/latin-400-italic.css';
+import '@fontsource-variable/noto-serif-sc';
 import HomeMotion from '../components/HomeMotion.astro';
 import '@fontsource/inter/latin-400.css';
 import '@fontsource/inter/latin-600.css';
 interface Props { title?: string; description?: string; active?: string; wide?: boolean; article?: boolean; homeEffects?: boolean; }
 const { title = 'yuzheng · 推理、Agent 与数据库', description = '关注大模型推理、代码 Agent 与数据库系统。这里记录我的工程项目、实现过程与技术思考。', active = 'home', wide = false, article = false, homeEffects = false } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site);
+const canonical = new URL(active === '404' ? '/404.html' : Astro.url.pathname, Astro.site);
 ---
 <!doctype html>
 <html lang="zh-CN">
@@ -13,8 +17,12 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#fafaf7" />
+    <meta name="theme-color" content="#fafaf8" />
+    <script is:inline>
+      try { if (localStorage.getItem('site-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch {}
+    </script>
     <title>{title}</title>
+    {active === '404' && <meta name="robots" content="noindex" />}
     {article && <link rel="stylesheet" href="/vendor/katex/katex.min.css" />}
     {article && <script is:inline>
       // Restore before the article is painted, including visits to deep links.
@@ -43,16 +51,38 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     {homeEffects && <HomeMotion />}
     <a class="skip" href="#main">跳到正文</a>
     <div class:list={['site', { 'site-wide': wide, 'site-article': article }]}>
-      <header class="header">
+      <header class="header" data-pagefind-ignore>
         <a class="home-link" href="/" aria-label="yuzheng 首页"><img class="site-mark" src="/favicon.svg" width="30" height="30" alt="" />yuzheng</a>
         <nav aria-label="主导航">
           <a href="/projects/" aria-current={active === 'projects' ? 'page' : undefined}>项目</a>
           <a href="/blog/" aria-current={active === 'blog' ? 'page' : undefined}>笔记</a>
           <a href="/about/" aria-current={active === 'about' ? 'page' : undefined}>关于</a>
         </nav>
+        <div class="header-tools"><a class="icon-button" href="/search/" aria-label="搜索网站" title="搜索网站"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></a><button class="icon-button theme-toggle" type="button" aria-label="切换深色模式" title="切换深色模式" hidden><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20 14.4A8.6 8.6 0 0 1 9.6 4 8.6 8.6 0 1 0 20 14.4Z"/></svg><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></button></div>
       </header>
       <main id="main" tabindex="-1"><slot /></main>
-      <footer><div><a class="footer-name" href="/">yuzheng</a><span class="footer-note">项目、问题与思考。</span></div><div><a href="https://github.com/yuzheng310">GitHub ↗</a><a href="/rss.xml">RSS</a><a href="https://github.com/markhorn-dev/astro-nano">Astro Nano ↗</a></div></footer>
+      <footer data-pagefind-ignore><div><a class="footer-name" href="/">yuzheng</a><span class="footer-note">项目、问题与思考。</span></div><div><a href="https://github.com/yuzheng310">GitHub ↗</a><a href="/rss.xml">RSS</a><a href="/about/#colophon">关于本站</a></div></footer>
     </div>
+    {article && <ReadingTools />}
+    <script>
+      const toggle = document.querySelector<HTMLButtonElement>('.theme-toggle');
+      const syncTheme = () => {
+        const dark = document.documentElement.dataset.theme === 'dark';
+        const label = dark ? '切换浅色模式' : '切换深色模式';
+        toggle?.setAttribute('aria-label', label);
+        toggle?.setAttribute('title', label);
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#171c1c' : '#fafaf8');
+      };
+      if (toggle) {
+        toggle.hidden = false;
+        syncTheme();
+        toggle.addEventListener('click', () => {
+          const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+          document.documentElement.dataset.theme = theme;
+          try { localStorage.setItem('site-theme', theme); } catch {}
+          syncTheme();
+        });
+      }
+    </script>
   </body>
 </html>

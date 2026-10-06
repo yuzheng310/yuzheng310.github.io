@@ -5,12 +5,16 @@ interface Props { activeTag?: string; }
 const { activeTag } = Astro.props;
 const items = await getCollection('blog', ({ data }) => !data.draft);
 const tags = [...new Set(items.flatMap(item => item.data.tags))].sort((a, b) => a === '翻译' ? -1 : b === '翻译' ? 1 : a.localeCompare(b, 'zh-CN'));
+const primaryTags = ['翻译', '大模型推理', 'KV Cache', 'GPU 优化'];
+if (activeTag && !primaryTags.includes(activeTag)) primaryTags.push(activeTag);
+const moreTags = tags.filter(tag => !primaryTags.includes(tag));
 const visible = activeTag ? items.filter(item => item.data.tags.includes(activeTag)) : items;
 ---
 <header class="page-heading notes-heading"><p class="eyebrow">NOTES & IDEAS</p><h1>{activeTag || '笔记'}</h1><p>{activeTag ? `关于「${activeTag}」的 ${visible.length} 篇记录。` : '工程实践、技术思考与翻译，沿时间慢慢积累。'}</p></header>
 <nav class="tag-filters" aria-label="按标签浏览笔记">
   <a class="tag-filter" href="/blog/" aria-current={!activeTag ? 'page' : undefined}>全部 <span>{items.length}</span></a>
-  {tags.map(tag => <a class="tag-filter" href={`/blog/tags/${encodeURIComponent(tag)}/`} aria-current={activeTag === tag ? 'page' : undefined}>{tag}<span>{items.filter(item => item.data.tags.includes(tag)).length}</span></a>)}
+  {primaryTags.filter(tag => tags.includes(tag)).map(tag => <a class="tag-filter" href={`/blog/tags/${encodeURIComponent(tag)}/`} aria-current={activeTag === tag ? 'page' : undefined}>{tag}<span>{items.filter(item => item.data.tags.includes(tag)).length}</span></a>)}
+  <details class="tag-overflow"><summary>更多主题 <span>{moreTags.length}</span></summary><div class="extra-tags">{moreTags.map(tag => <a class="tag-filter" href={`/blog/tags/${encodeURIComponent(tag)}/`}>{tag}<span>{items.filter(item => item.data.tags.includes(tag)).length}</span></a>)}</div></details>
 </nav>
 <div class="timeline-label"><span>时间线</span><span>按本站发布日期 · 从新到旧</span></div>
 <NoteTimeline items={visible} />

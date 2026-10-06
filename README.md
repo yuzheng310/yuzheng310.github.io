@@ -1,8 +1,8 @@
-# yuzheng310 个人主页
+# yuzheng 个人主页
 
 网站：**[yuzheng310.github.io](https://yuzheng310.github.io/)**
 
-基于 [Astro Nano](https://github.com/markhorn-dev/astro-nano)（MIT）改写，使用简洁的文字排版展示项目与笔记。
+基于 [Astro Nano](https://github.com/markhorn-dev/astro-nano)（MIT）改写。整体结构与克制交互参考 [Astro Sphere](https://github.com/markhorn-dev/astro-sphere)，中文长文的字体、行宽与层级参考 [Retypeset](https://github.com/radishzzz/astro-theme-retypeset)。保留独立 Astro 布局，没有混入第二套主题框架。
 
 - 首页：`src/pages/index.astro`
 - 项目记录：`src/content/projects/`
@@ -43,3 +43,20 @@ npm run build
 Mooncake、Continuum 为论文精读改写，py-kvcache 为选章译文整理。`llm-inference-explained` 的来源文件仅保留 Avi Chawla 的作者主页，文章直链待补。
 
 发布前运行 `npm run build`，检查站内链接、公式、图片、目录和移动端布局。
+
+## 设计与阅读功能
+
+- 浅色纸面与墨绿强调色为默认；深色模式由读者主动切换并保存在本机。
+- Inter 用于界面，Lora 与思源宋体用于标题、中文长文；字体本地托管、按 Unicode 子集加载，许可证在 `public/licenses/`。
+- 首页依次展示个人介绍、三个项目、原创工程笔记、最新翻译与精读。共享项目摘要维护在 `src/data/projects.ts`，详细内容在 content collection。
+- 样式分为 `portfolio.css`（全站与页面）、`reading.css`（阅读与公式）、`archive.css`（时间线与标签）。
+- 正文默认桌面 18px / 手机 17px，代码 14px / 13px，两组大小分别保存。目录桌面固定在侧边，手机折叠。
+- 代码块支持复制，公式区分行内与行间；阅读页提供进度与返回顶部。
+- 背景与按钮只使用少量 CSS 动画；可手动暂停，系统减少动态效果时关闭。文章不加载首页背景动效。
+- 全文搜索使用 Pagefind，构建后自动索引 13 篇笔记与 3 个项目（未来新增非草稿内容会自动加入）；不会重复索引标签列表。仅搜索页加载搜索资源，不发送查询到第三方。
+
+### 本地检查
+
+`npm run build` 包括 Astro 类型检查、静态构建和 Pagefind 索引。搜索必须在构建后用 `npm run preview` 检查；开发模式没有生成索引时会给出明确提示。
+
+`python3 scripts/check-site.py` 在构建后检查页面、站内链接、静态资源、锚点、KaTeX 错误和搜索资源。还需在浏览器检查首页、长文、搜索和手机布局；字号与主题是浏览器本地偏好。
