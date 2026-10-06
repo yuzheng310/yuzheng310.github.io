@@ -1,9 +1,10 @@
 ---
 import '../styles/portfolio.css';
+import HomeMotion from '../components/HomeMotion.astro';
 import '@fontsource/inter/latin-400.css';
 import '@fontsource/inter/latin-600.css';
-interface Props { title?: string; description?: string; active?: string; wide?: boolean; article?: boolean; }
-const { title = 'yuzheng · 推理、Agent 与数据库', description = '关注大模型推理、代码 Agent 与数据库系统。这里记录我的工程项目、实现过程与技术思考。', active = 'home', wide = false, article = false } = Astro.props;
+interface Props { title?: string; description?: string; active?: string; wide?: boolean; article?: boolean; homeEffects?: boolean; }
+const { title = 'yuzheng · 推理、Agent 与数据库', description = '关注大模型推理、代码 Agent 与数据库系统。这里记录我的工程项目、实现过程与技术思考。', active = 'home', wide = false, article = false, homeEffects = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 ---
 <!doctype html>
@@ -39,6 +40,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta name="twitter:card" content="summary" />
   </head>
   <body>
+    {homeEffects && <HomeMotion />}
     <a class="skip" href="#main">跳到正文</a>
     <div class:list={['site', { 'site-wide': wide, 'site-article': article }]}>
       <header class="header">

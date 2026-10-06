@@ -1,7 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
 import Portfolio from '../layouts/Portfolio.astro';
-import HomeMotion from '../components/HomeMotion.astro';
 const notes = (await getCollection('blog', ({ data }) => !data.draft)).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf() || a.slug.localeCompare(b.slug)).slice(0, 5);
 const projects = [
   { slug: 'qwen3-runtime', number: '01', field: '推理系统', title: 'Qwen3 Runtime', description: '面向多轮 Agent 的单 GPU 推理运行时。从请求调度、分页 KV 到会话暂停与恢复，沿完整执行路径分析性能。', topics: ['请求调度', 'KV 状态管理', 'GPU 执行优化'], repo: 'https://github.com/yuzheng310/qwen3-runtime' },
@@ -9,9 +8,8 @@ const projects = [
   { slug: 'database', number: '03', field: '数据库系统', title: 'DynamoDB 兼容与在线迁移', description: '实习期间参与的团队项目。负责兼容层与配套迁移工具的架构和研发，处理 API 语义、增量同步与一致性校验。', topics: ['API 语义兼容', '在线迁移', '一致性校验'], repo: null },
 ];
 ---
-<Portfolio wide>
+<Portfolio wide homeEffects>
   <section class="intro" aria-labelledby="intro-title">
-    <HomeMotion />
     <p class="eyebrow">你好，我是 yuzheng</p>
     <h1 id="intro-title">写代码，<br />研究系统如何工作<span class="accent">。</span></h1>
     <p class="intro-description">我关注大模型推理、代码 Agent 和数据库系统。<br class="wide-only" />从执行效率到状态与一致性，记录自己做过的工程、遇到的问题和做出的取舍。</p>

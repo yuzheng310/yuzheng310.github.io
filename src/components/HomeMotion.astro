@@ -1,97 +1,104 @@
-<div class="home-motion" data-paused="false" data-offscreen="false">
-  <div class="ambient" aria-hidden="true"><div class="ambient-light"></div></div>
-  <div class="compute-scene">
-    <svg viewBox="0 0 320 260" fill="none" aria-hidden="true">
-      <g class="connections">
-        <path d="M26 107H95M26 131H95M26 155H95" />
-        <path d="M193 131H237Q245 131 245 139V165M193 107H282" />
-        <path d="M265 213V228Q265 238 255 238H54Q44 238 44 228V181" stroke-dasharray="3 6" />
-      </g>
-      <g class="token-stream">
-        {[0, 1, 2].map(row => <rect class="token" x="29" y={102 + row * 24} width="10" height="10" rx="3" style={`--delay: ${row * -1.8}s`} />)}
-      </g>
-      <g class="tensor">
-        <rect x="110" y="60" width="88" height="102" rx="7" class="tensor-back" />
-        <rect x="102" y="68" width="88" height="102" rx="7" class="tensor-middle" />
-        <rect x="94" y="76" width="88" height="102" rx="7" class="tensor-front" />
-        {Array.from({length: 4}, (_, row) => Array.from({length: 4}, (_, col) => <rect class="cell" x={105 + col * 18} y={90 + row * 20} width="12" height="12" rx="2" style={`--delay: ${-(row + col) * .65}s`} />))}
-      </g>
-      <g class="cache">
-        {[0, 1, 2].map(row => <g>
-          <rect x="225" y={165 + row * 16} width="64" height="11" rx="3" class="cache-slot" />
-          <rect x="230" y={169 + row * 16} width={24 + row * 8} height="3" rx="1.5" class="cache-fill" style={`--delay: ${row * -2}s`} />
-        </g>)}
-      </g>
-      <circle class="output-dot" cx="281" cy="107" r="4" />
-      <g class="labels" fill="currentColor" stroke="none">
-        <text x="24" y="85">TOKEN</text>
-        <text x="100" y="48">COMPUTE</text>
-        <text x="225" y="153">KV CACHE</text>
-      </g>
-    </svg>
-    <div class="motion-caption"><span>推理之间，状态流动。</span><button type="button" class="motion-toggle" aria-label="暂停首页动效" aria-pressed="false" hidden><span class="pause-symbol" aria-hidden="true">Ⅱ</span><span class="play-symbol" aria-hidden="true">▷</span></button></div>
-  </div>
+---
+const ribbons = Array.from({ length: 12 }, (_, i) => `M ${1080 + i * 24} -80 C ${1580 + i * 14} 140, ${910 + i * 24} 350, ${1220 + i * 26} 610 S ${1570 + i * 12} 810, 1710 ${990 + i * 16}`);
+const lowerRibbons = Array.from({ length: 8 }, (_, i) => `M -100 ${480 + i * 28} C ${200 + i * 12} 600, ${-210 + i * 22} 830, ${300 + i * 27} 1110`);
+---
+<div class="home-effects" aria-hidden="true">
+  <div class="color-wash"></div>
+  <div class="pointer-light"></div>
+  <svg class="desktop-ribbons" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" fill="none">
+    <defs>
+      <linearGradient id="ribbon-color" x1="950" y1="0" x2="1580" y2="950" gradientUnits="userSpaceOnUse"><stop stop-color="#83b9c9" stop-opacity=".25" /><stop offset=".45" stop-color="#7bafa2" stop-opacity=".4" /><stop offset="1" stop-color="#a9a7ce" stop-opacity=".18" /></linearGradient>
+      <linearGradient id="lower-color" x1="0" y1="500" x2="360" y2="1050" gradientUnits="userSpaceOnUse"><stop stop-color="#9dbfa5" stop-opacity=".12" /><stop offset=".65" stop-color="#74ada6" stop-opacity=".28" /><stop offset="1" stop-color="#a2b9ce" stop-opacity=".1" /></linearGradient>
+    </defs>
+    <g class="ribbon-field">
+      {ribbons.map(d => <path d={d} stroke="url(#ribbon-color)" stroke-width=".8" />)}
+      {ribbons.filter((_, i) => i % 3 === 0).map((d, i) => <path class="light-trail" d={d} stroke="#6fa699" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 380" style={`--delay: ${i * -3}s`} />)}
+    </g>
+    <g class="lower-field">{lowerRibbons.map(d => <path d={d} stroke="url(#lower-color)" stroke-width=".8" />)}</g>
+    <g class="particles" fill="#70a295">
+      {[[1270,190],[1430,430],[1130,620],[1510,740],[75,460],[150,830],[350,930]].map(([x,y], i) => <circle cx={x} cy={y} r={i % 2 === 0 ? 2 : 1.5} style={`--delay: ${i * -2}s`} />)}
+    </g>
+  </svg>
+  <svg class="mobile-ribbons" viewBox="0 0 400 900" preserveAspectRatio="xMidYMid slice" fill="none">
+    <g class="ribbon-field" stroke="#8cb6aa" stroke-opacity=".2" stroke-width=".65">
+      {Array.from({length: 6}, (_, i) => <path d={`M ${330+i*17} -30 C ${510+i*15} 170, ${220+i*17} 260, ${340+i*17} 430 S ${490+i*16} 690, ${360+i*20} 950`} />)}
+    </g>
+  </svg>
 </div>
+<button type="button" class="effects-toggle" aria-label="暂停首页动效" aria-pressed="false" hidden><span aria-hidden="true">Ⅱ</span><span class="toggle-label">暂停动效</span></button>
 
 <style>
-  :global(.intro) { position: relative; isolation: isolate; }
-  :global(.intro > :not(.home-motion)) { position: relative; z-index: 1; }
-  .home-motion { position: absolute; inset: 0; pointer-events: none; }
-  .ambient { position: absolute; inset: -55px 0 -8px; z-index: -1; overflow: hidden; pointer-events: none; background-image: radial-gradient(#35644f23 .7px, transparent .9px); background-size: 24px 24px; mask-image: linear-gradient(90deg, #0003, transparent 42%, #000b), linear-gradient(transparent, #000 25%, #000 70%, transparent); mask-composite: intersect; }
-  .ambient-light { position: absolute; width: 470px; height: 390px; right: -40px; top: -15px; background: radial-gradient(ellipse, #a9c39d24, transparent 68%); }
-  .compute-scene { position: absolute; right: 0; top: 15px; width: 300px; color: #678374; }
-  svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .connections { stroke: #b6c5b7; stroke-width: 1; }
-  .token { fill: #709781; opacity: .65; }
-  .tensor-back { fill: #eaf0e4; stroke: #c3d0bd; }
-  .tensor-middle { fill: #f1f4ed; stroke: #b8c9b7; }
-  .tensor-front { fill: #fafbf7; stroke: #9cb69e; }
-  .cell { fill: #89ab90; opacity: .28; }
-  .cache-slot { fill: #f0f3eb; stroke: #c0cebd; }
-  .cache-fill { fill: #83a18a; opacity: .6; }
-  .output-dot { fill: #6f927a; opacity: .55; }
-  .labels { font: 8px ui-monospace, SFMono-Regular, monospace; letter-spacing: 1.1px; }
-  .motion-caption { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 5px; font-size: 11px; letter-spacing: .05em; }
-  .motion-toggle { pointer-events: auto; display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 1px solid #cdd7c9; border-radius: 50%; background: var(--paper); color: var(--accent); font-size: 13px; cursor: pointer; }
-  .motion-toggle[hidden] { display: none; }
-  .motion-toggle:hover { background: var(--wash); }
-  .motion-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  .play-symbol { display: none; }
-  [data-paused="true"] .pause-symbol { display: none; }
-  [data-paused="true"] .play-symbol { display: inline; }
+  :global(body:has(.home-effects) .site) { position: relative; z-index: 1; }
+  :global(body:has(.home-effects) .skip) { z-index: 4; }
+  .home-effects { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .home-effects svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .mobile-ribbons { display: none; }
+  .color-wash { position: absolute; inset: -8%; background: radial-gradient(ellipse at 88% 18%, #bde6e04d, transparent 40%), radial-gradient(ellipse at 2% 78%, #d4e4cc47, transparent 34%), radial-gradient(ellipse at 95% 92%, #dcdcf047, transparent 36%); }
+  .pointer-light { position: absolute; inset: 0; background: radial-gradient(340px circle at var(--pointer-x, 85%) var(--pointer-y, 25%), #a2d7c71c, transparent 85%); }
+  .light-trail { opacity: .5; }
+  .particles { opacity: .45; }
+  .effects-toggle { position: fixed; right: 18px; bottom: 16px; z-index: 3; display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 4px 10px; border: 1px solid #dbe4dc; border-radius: 20px; color: #63786d; background: #fafaf7e8; font-family: inherit; font-size: 11px; cursor: pointer; }
+  .effects-toggle[hidden] { display: none; }
+  .effects-toggle:hover { color: var(--accent); border-color: #adc6b9; }
+  .effects-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  @property --cta-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  :global(.intro-links .primary-link) { border-color: transparent; background: linear-gradient(#eff8f1, #eff8f1) padding-box, conic-gradient(from var(--cta-angle), #c8e2ce, #75b8aa, #c8e2ce, #a1c2de, #c8e2ce) border-box; }
+  :global(.intro-links .primary-link:hover), :global(.intro-links .primary-link:focus-visible) { background: linear-gradient(#e5f4eb, #e5f4eb) padding-box, conic-gradient(from var(--cta-angle), #a2d0b7, #55a897, #a2d0b7, #8aafd0, #a2d0b7) border-box; }
   @media (prefers-reduced-motion: no-preference) {
-    .token { animation: token-travel 6s var(--delay) ease-in-out infinite; }
-    .cell { animation: compute-wave 7s var(--delay) ease-in-out infinite; }
-    .cache-fill, .output-dot { animation: compute-wave 8s var(--delay, 0s) ease-in-out infinite; }
-    .ambient-light { animation: ambient-drift 20s ease-in-out infinite alternate; }
-    [data-paused="true"] *, [data-offscreen="true"] * { animation-play-state: paused; }
+    .color-wash { animation: wash-drift 18s ease-in-out infinite alternate; }
+    .ribbon-field { transform-origin: 85% 40%; animation: ribbon-drift 16s ease-in-out infinite alternate; }
+    .lower-field { animation: ribbon-drift 20s ease-in-out infinite alternate-reverse; }
+    .light-trail { animation: light-flow 28s var(--delay) linear infinite; }
+    .particles circle { animation: particle-drift 12s var(--delay) ease-in-out infinite alternate; }
+    :global(.intro-links .primary-link) { animation: border-flow 7s linear infinite; transition: transform 180ms ease, box-shadow 180ms ease; }
+    :global(.intro-links .primary-link:hover), :global(.intro-links .primary-link:focus-visible) { transform: translateY(-2px); }
+    :global(.primary-link span) { animation: arrow-invite 4.5s ease-in-out infinite; }
+    :global(body[data-motion-paused="true"] .home-effects *), :global(body[data-motion-paused="true"] .primary-link), :global(body[data-motion-paused="true"] .primary-link span) { animation-play-state: paused; }
   }
-  @keyframes token-travel { 0%, 12% { transform: translateX(0); opacity: .15; } 25% { opacity: .7; } 65%, 100% { transform: translateX(54px); opacity: 0; } }
-  @keyframes compute-wave { 0%, 100% { opacity: .2; } 45% { opacity: .72; } }
-  @keyframes ambient-drift { to { transform: translate(-55px, 25px); opacity: .45; } }
-  @media (max-width: 1050px) { .compute-scene { width: 240px; top: 38px; } }
-  @media (max-width: 1000px) {
-    .compute-scene { display: none; }
-    .ambient { inset: -30px 0 -8px; }
-    .ambient-light { animation: none; }
+  @keyframes wash-drift { to { transform: translate(-2%, 3%) scale(1.05); } }
+  @keyframes ribbon-drift { to { transform: translate(-15px, 12px) rotate(-2deg); } }
+  @keyframes light-flow { to { stroke-dashoffset: -766; } }
+  @keyframes particle-drift { to { transform: translate(9px, -18px); opacity: .3; } }
+  @keyframes border-flow { to { --cta-angle: 360deg; } }
+  @keyframes arrow-invite { 0%, 65%, 100% { transform: translateY(0); } 76% { transform: translateY(3px); } 88% { transform: translateY(0); } }
+  @media (max-width: 760px) {
+    .desktop-ribbons { display: none; }
+    .mobile-ribbons { display: block; }
+    .pointer-light { display: none; }
+    .effects-toggle { right: 10px; bottom: 10px; font-size: 10px; }
   }
-  @media (prefers-reduced-motion: reduce) { .motion-toggle { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .effects-toggle, .pointer-light { display: none; } }
 </style>
 
 <script>
-  const scene = document.querySelector<HTMLElement>('.home-motion');
-  const button = scene?.querySelector<HTMLButtonElement>('.motion-toggle');
-  if (scene && button) {
-    button.hidden = false;
-    button.addEventListener('click', () => {
-      const paused = scene.dataset.paused !== 'true';
-      scene.dataset.paused = String(paused);
-      button.setAttribute('aria-pressed', String(paused));
-      button.setAttribute('aria-label', paused ? '播放首页动效' : '暂停首页动效');
+  const effects = document.querySelector<HTMLElement>('.home-effects');
+  const toggle = document.querySelector<HTMLButtonElement>('.effects-toggle');
+  if (effects && toggle) {
+    let paused = false;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => { document.body.dataset.motionPaused = String(paused || document.hidden || reduced.matches); };
+    toggle.hidden = false;
+    toggle.addEventListener('click', () => {
+      paused = !paused;
+      toggle.setAttribute('aria-pressed', String(paused));
+      toggle.setAttribute('aria-label', paused ? '播放首页动效' : '暂停首页动效');
+      toggle.querySelector('.toggle-label')!.textContent = paused ? '播放动效' : '暂停动效';
+      toggle.querySelector('[aria-hidden]')!.textContent = paused ? '▷' : 'Ⅱ';
+      update();
     });
-    let visible = true;
-    const update = () => { scene.dataset.offscreen = String(!visible || document.hidden); };
-    new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; update(); }).observe(scene);
     document.addEventListener('visibilitychange', update);
+    reduced.addEventListener('change', update);
+    let frame = 0;
+    let x = 0, y = 0;
+    window.addEventListener('pointermove', (event) => {
+      if (paused || reduced.matches || event.pointerType !== 'mouse') return;
+      x = event.clientX; y = event.clientY;
+      if (!frame) frame = requestAnimationFrame(() => {
+        effects.style.setProperty('--pointer-x', `${x}px`);
+        effects.style.setProperty('--pointer-y', `${y}px`);
+        frame = 0;
+      });
+    }, { passive: true });
+    update();
   }
 </script>
