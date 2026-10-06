@@ -67,32 +67,31 @@ $$
 - **线性投影** ：每个头使用 $\mathbf{W}_Q^{(\ell)} \in \mathbb{R}^{D \times D}$，$\mathbf{W}_K \in \mathbb{R}^{D \times KH}$，$\mathbf{W}_V^{(\ell)} \in \mathbb{R}^{D \times KH}$（其中 $H = D/N$）将 $\mathbf{X}^{(\ell)}$ 投影到头的低维子空间：
 
   $$
-  \mathbf{Q} = \bar{\mathbf{X}}\mathbf{W}_Q \in \mathbb{R}^{B \times T \times D}, \quad \mathbf{K} = \bar{\mathbf{X}}\mathbf{W}_K \in \mathbb{R}^{B \times S \times (K H)}, \quad \mathbf{V} = \bar{\mathbf{X}}\mathbf{W}_V \in \mathbb{R}^{B \times S \times (K H)}
+  \begin{aligned}
+  \mathbf{Q} &= \bar{\mathbf{X}}\mathbf{W}_Q \in \mathbb{R}^{B \times T \times D} \\[0.3em]
+  \mathbf{K} &= \bar{\mathbf{X}}\mathbf{W}_K \in \mathbb{R}^{B \times S \times (K H)} \\[0.3em]
+  \mathbf{V} &= \bar{\mathbf{X}}\mathbf{W}_V \in \mathbb{R}^{B \times S \times (K H)}
+  \end{aligned}
   $$
 
   - *\[可选 QK-Norm\]*：对 Query 和 Key 向量应用 RMSNorm，以控制进入点积运算的向量模长。
 - **Reshape 暴露头维度** ：将通道维度展开 $D \to N \times H$ 以及 $K \cdot H \to K \times H$，然后转置序列长度维度（$S$ 或 $T$）和头维度（$N$ 或 $K$）：
 
   $$
-  \mathbf{Q} \in \mathbb{R}^{B \times T \times D} \to \mathbb{R}^{B \times N \times T \times H}
-  $$
-
-  $$
-  \mathbf{K} \in \mathbb{R}^{B \times S \times (K\cdot H)} \to \mathbb{R}^{B \times K \times S \times H}
-  $$
-
-  $$
-  \mathbf{V} \in \mathbb{R}^{B \times S \times (K\cdot H)} \to \mathbb{R}^{B \times K \times S \times H}
+  \begin{aligned}
+  \mathbf{Q} &\in \mathbb{R}^{B \times T \times D} \to \mathbb{R}^{B \times N \times T \times H} \\[0.3em]
+  \mathbf{K} &\in \mathbb{R}^{B \times S \times (K\cdot H)} \to \mathbb{R}^{B \times K \times S \times H} \\[0.3em]
+  \mathbf{V} &\in \mathbb{R}^{B \times S \times (K\cdot H)} \to \mathbb{R}^{B \times K \times S \times H}
+  \end{aligned}
   $$
 
 - **针对 GQA 展开 $K, V$** ：将 $K, V$ 沿组维度重复展开以对齐 Query 头数：
 
   $$
-  \mathbf{K} \in \mathbb{R}^{B \times K \times S \times H} \to \mathbb{R}^{B \times N \times S \times H}
-  $$
-
-  $$
-  \mathbf{V} \in \mathbb{R}^{B \times K \times S \times H} \to \mathbb{R}^{B \times N \times S \times H}
+  \begin{aligned}
+  \mathbf{K} &\in \mathbb{R}^{B \times K \times S \times H} \to \mathbb{R}^{B \times N \times S \times H} \\[0.3em]
+  \mathbf{V} &\in \mathbb{R}^{B \times K \times S \times H} \to \mathbb{R}^{B \times N \times S \times H}
+  \end{aligned}
   $$
 
 - **应用 RoPE** ：在每个位置 $m$ 通过旋转矩阵 $\mathbf{R}_m$ 旋转 Query 向量 $\mathbf{q}_m \in \mathbb{R}^H$（或 Key 向量 $\mathbf{k}_m$）：
@@ -570,9 +569,9 @@ $$
 - 使用目标模型（Target Model）$p$ 评估这些 Token：
   - 以如下概率依序接受每个草稿 Token $x$：
 
-  $$
-  \min\left(1, \frac{p(x)}{q(x)}\right)
-  $$
+    $$
+    \min\left(1, \frac{p(x)}{q(x)}\right)
+    $$
 
   - 若 $p(x) > q(x)$，则 **必然接受** 它；
   - 若发生拒绝，截断后续草稿，从重新归一化后的修正分布中采样：

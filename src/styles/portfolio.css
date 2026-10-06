@@ -248,10 +248,10 @@ footer a:hover { text-decoration: underline; }
 .prose figure { margin: 30px 0; }
 .prose figure img { margin-bottom: 12px; }
 .prose figcaption { color: var(--muted); font-size: 13px; line-height: 1.75; text-align: center; }
-/* Keep inline math on the text baseline; only display math owns a line. */
+/* Inline math follows the text baseline; display equations are centered blocks. */
 .prose .katex { position: relative; font-size: 1.04em; }
 .prose .katex-display { margin: 26px 0; padding: 4px 0; overflow: visible; }
-.prose .katex-display > .katex { display: block; text-align: left; white-space: normal; }
+.prose .katex-display > .katex { display: block; text-align: center; white-space: normal; }
 .prose .katex-display > .katex > .katex-html { white-space: normal; }
 .prose .katex-display .base { margin: 3px 0; }
 .prose details { margin: 24px 0; padding: 15px 18px; border: 1px solid var(--line); border-radius: 3px; }
