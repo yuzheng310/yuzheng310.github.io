@@ -397,9 +397,7 @@ $$
 
 UC Berkeley 提出的  **Ring Attention**  是上下文并行的核心理论基石。它将超长文本序列沿着 Sequence 维度切分成 $\text{CP}$ 块，均匀分布在参与上下文并行的 $\text{CP}$ 张 GPU 上：
 
-$$
-\text{每个 GPU 仅持有局部序列块：} \quad Q_i, K_i, V_i \quad \left(\text{长度为 } \frac{s}{\text{CP}}\right)
-$$
+每个 GPU 仅持有局部序列块 $Q_i, K_i, V_i$，各块的序列长度为 $\frac{s}{\text{CP}}$。
 
 ![Context Parallelism Attention Mask](/translations/images/23059ae7e3c3242c.svg)
 

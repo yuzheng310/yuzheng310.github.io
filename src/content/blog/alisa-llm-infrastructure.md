@@ -470,10 +470,12 @@ $$
   \langle \mathbf{R}_{m\theta}\mathbf{q}, \mathbf{R}_{n\theta}\mathbf{k} \rangle
   &= (\mathbf{R}_{m\theta}\mathbf{q})^\top \mathbf{R}_{n\theta}\mathbf{k} \\
   &= \mathbf{q}^\top \mathbf{R}_{m\theta}^\top \mathbf{R}_{n\theta}\mathbf{k} \\
-  &= \mathbf{q}^\top \mathbf{R}_{-m\theta}\mathbf{R}_{n\theta}\mathbf{k} \quad \left(\text{因为正交矩阵 } \mathbf{R}_\alpha^\top = \mathbf{R}_{-\alpha}\right) \\
-  &= \mathbf{q}^\top \mathbf{R}_{(n - m)\theta}\mathbf{k} \quad \left(\text{因为旋转复合 } \mathbf{R}_\alpha \mathbf{R}_\beta = \mathbf{R}_{\alpha+\beta}\right)
+  &= \mathbf{q}^\top \mathbf{R}_{-m\theta}\mathbf{R}_{n\theta}\mathbf{k} \\
+  &= \mathbf{q}^\top \mathbf{R}_{(n - m)\theta}\mathbf{k}
   \end{aligned}
   $$
+
+  第三步利用旋转矩阵的正交性：$\mathbf{R}_\alpha^\top = \mathbf{R}_{-\alpha}$；最后一步利用旋转复合关系：$\mathbf{R}_\alpha \mathbf{R}_\beta = \mathbf{R}_{\alpha+\beta}$。
 
 - 旋转使相对位置信息进入内积；不能据此断言任意 Query / Key 的内积都会随距离单调衰减；
 - 对于二维向量 $\mathbf{x} = [x_1, x_2]$，旋转角度 $\theta$ 的变换为：

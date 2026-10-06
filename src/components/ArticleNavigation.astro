@@ -1,24 +1,78 @@
 <nav class="article-navigation" aria-label="文章目录" hidden>
-  <details><summary>本文目录 <span aria-hidden="true">＋</span></summary><ol></ol></details>
+  <details>
+    <summary>本文目录 <span aria-hidden="true">＋</span></summary>
+    <ol></ol>
+  </details>
 </nav>
 <script>
   const navigation = document.querySelector<HTMLElement>('.article-navigation');
+  const details = navigation?.querySelector('details');
   const list = navigation?.querySelector('ol');
-  const headings = [...document.querySelectorAll<HTMLElement>('.prose h2')].filter(heading => heading.textContent?.trim() !== '目录');
-  if (navigation && list && headings.length > 1) {
-    headings.forEach((heading, index) => {
+  const headings = [...document.querySelectorAll<HTMLElement>('.prose h2, .prose h3')]
+    .filter(heading => heading.textContent?.trim() !== '目录');
+
+  if (navigation && details && list && headings.length > 1) {
+    const desktop = window.matchMedia('(min-width: 1000px)');
+    const links = headings.map((heading, index) => {
       if (!heading.id) {
         let id = `section-${index + 1}`;
         while (document.getElementById(id)) id += '-section';
         heading.id = id;
       }
       const item = document.createElement('li');
+      if (heading.tagName === 'H3') item.className = 'toc-subsection';
       const link = document.createElement('a');
       link.href = `#${heading.id}`;
-      link.textContent = heading.textContent;
+      // KaTeX includes both accessible MathML and visible HTML; avoid duplicate labels.
+      const label = heading.cloneNode(true) as HTMLElement;
+      label.querySelectorAll('.katex-mathml').forEach(node => node.remove());
+      link.textContent = label.textContent;
+      link.addEventListener('click', () => { if (!desktop.matches) details.open = false; });
       item.append(link);
       list.append(item);
+      return link;
     });
     navigation.hidden = false;
+    const syncLayout = () => { details.open = desktop.matches; };
+    syncLayout();
+    desktop.addEventListener('change', syncLayout);
+    details.querySelector('summary')?.addEventListener('click', event => {
+      if (desktop.matches) event.preventDefault();
+    });
+    navigation.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !desktop.matches) {
+        details.open = false;
+        details.querySelector('summary')?.focus();
+      }
+    });
+
+    let active = -1;
+    let scheduled = false;
+    const updateActive = () => {
+      scheduled = false;
+      // Include both the heading's scroll margin and the page's scroll padding.
+      const offset = 120;
+      let index = 0;
+      headings.forEach((heading, candidate) => {
+        if (heading.getBoundingClientRect().top <= offset) index = candidate;
+      });
+      if (index === active) return;
+      if (active >= 0) links[active].removeAttribute('aria-current');
+      active = index;
+      const link = links[index];
+      link.setAttribute('aria-current', 'location');
+      if (desktop.matches) {
+        const item = link.getBoundingClientRect();
+        const bounds = list.getBoundingClientRect();
+        if (item.top < bounds.top || item.bottom > bounds.bottom) {
+          list.scrollTop += item.top - bounds.top - list.clientHeight / 3;
+        }
+      }
+    };
+    document.addEventListener('scroll', () => {
+      if (!scheduled) { scheduled = true; requestAnimationFrame(updateActive); }
+    }, { passive: true });
+    updateActive();
+    window.addEventListener('resize', updateActive);
   }
 </script>
