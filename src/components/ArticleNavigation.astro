@@ -13,6 +13,8 @@
 
   if (navigation && details && list && headings.length > 1) {
     const desktop = window.matchMedia('(min-width: 1000px)');
+    let navigating = false;
+    let settleTimer: number | undefined;
     const links = headings.map((heading, index) => {
       if (!heading.id) {
         let id = `section-${index + 1}`;
@@ -27,7 +29,15 @@
       const label = heading.cloneNode(true) as HTMLElement;
       label.querySelectorAll('.katex-mathml').forEach(node => node.remove());
       link.textContent = label.textContent;
-      link.addEventListener('click', () => { if (!desktop.matches) details.open = false; });
+      link.addEventListener('click', event => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        // Keep the clicked entry stable while native smooth scrolling crosses
+        // intermediate chapters. Resume scroll tracking when the page settles.
+        navigating = true;
+        setActive(index, false);
+        if (!desktop.matches) details.open = false;
+        scheduleSettle();
+      });
       item.append(link);
       list.append(item);
       return link;
@@ -48,20 +58,13 @@
 
     let active = -1;
     let scheduled = false;
-    const updateActive = () => {
-      scheduled = false;
-      // Include both the heading's scroll margin and the page's scroll padding.
-      const offset = 120;
-      let index = 0;
-      headings.forEach((heading, candidate) => {
-        if (heading.getBoundingClientRect().top <= offset) index = candidate;
-      });
+    const setActive = (index: number, follow = true) => {
       if (index === active) return;
       if (active >= 0) links[active].removeAttribute('aria-current');
       active = index;
       const link = links[index];
       link.setAttribute('aria-current', 'location');
-      if (desktop.matches) {
+      if (follow && desktop.matches) {
         const item = link.getBoundingClientRect();
         const bounds = list.getBoundingClientRect();
         if (item.top < bounds.top || item.bottom > bounds.bottom) {
@@ -69,7 +72,30 @@
         }
       }
     };
+    const updateActive = () => {
+      scheduled = false;
+      if (navigating) return;
+      // Include both the heading's scroll margin and the page's scroll padding.
+      const offset = 120;
+      let index = 0;
+      headings.forEach((heading, candidate) => {
+        if (heading.getBoundingClientRect().top <= offset) index = candidate;
+      });
+      setActive(index);
+    };
+    function finishNavigation() {
+      window.clearTimeout(settleTimer);
+      navigating = false;
+      updateActive();
+    }
+    function scheduleSettle() {
+      window.clearTimeout(settleTimer);
+      // A quiet period also handles same-anchor clicks and interrupted scrolls.
+      // Native scrollend can belong to an older animation after rapid clicks.
+      settleTimer = window.setTimeout(finishNavigation, 180);
+    }
     document.addEventListener('scroll', () => {
+      if (navigating) { scheduleSettle(); return; }
       if (!scheduled) { scheduled = true; requestAnimationFrame(updateActive); }
     }, { passive: true });
     updateActive();
