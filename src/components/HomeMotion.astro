@@ -1,29 +1,11 @@
----
-const ribbons = Array.from({ length: 12 }, (_, i) => `M ${1080 + i * 24} -80 C ${1580 + i * 14} 140, ${910 + i * 24} 350, ${1220 + i * 26} 610 S ${1570 + i * 12} 810, 1710 ${990 + i * 16}`);
-const lowerRibbons = Array.from({ length: 8 }, (_, i) => `M -100 ${480 + i * 28} C ${200 + i * 12} 600, ${-210 + i * 22} 830, ${300 + i * 27} 1110`);
----
 <div class="home-effects" aria-hidden="true">
-  <div class="color-wash"></div>
+  <div class="glow glow-mint"></div>
+  <div class="glow glow-blue"></div>
+  <div class="glow glow-warm"></div>
   <div class="pointer-light"></div>
-  <svg class="desktop-ribbons" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" fill="none">
-    <defs>
-      <linearGradient id="ribbon-color" x1="950" y1="0" x2="1580" y2="950" gradientUnits="userSpaceOnUse"><stop stop-color="#83b9c9" stop-opacity=".25" /><stop offset=".45" stop-color="#7bafa2" stop-opacity=".4" /><stop offset="1" stop-color="#a9a7ce" stop-opacity=".18" /></linearGradient>
-      <linearGradient id="lower-color" x1="0" y1="500" x2="360" y2="1050" gradientUnits="userSpaceOnUse"><stop stop-color="#9dbfa5" stop-opacity=".12" /><stop offset=".65" stop-color="#74ada6" stop-opacity=".28" /><stop offset="1" stop-color="#a2b9ce" stop-opacity=".1" /></linearGradient>
-    </defs>
-    <g class="ribbon-field">
-      {ribbons.map(d => <path d={d} stroke="url(#ribbon-color)" stroke-width=".8" />)}
-      {ribbons.filter((_, i) => i % 3 === 0).map((d, i) => <path class="light-trail" d={d} stroke="#6fa699" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 380" style={`--delay: ${i * -3}s`} />)}
-    </g>
-    <g class="lower-field">{lowerRibbons.map(d => <path d={d} stroke="url(#lower-color)" stroke-width=".8" />)}</g>
-    <g class="particles" fill="#70a295">
-      {[[1270,190],[1430,430],[1130,620],[1510,740],[75,460],[150,830],[350,930]].map(([x,y], i) => <circle cx={x} cy={y} r={i % 2 === 0 ? 2 : 1.5} style={`--delay: ${i * -2}s`} />)}
-    </g>
-  </svg>
-  <svg class="mobile-ribbons" viewBox="0 0 400 900" preserveAspectRatio="xMidYMid slice" fill="none">
-    <g class="ribbon-field" stroke="#8cb6aa" stroke-opacity=".2" stroke-width=".65">
-      {Array.from({length: 6}, (_, i) => <path d={`M ${330+i*17} -30 C ${510+i*15} 170, ${220+i*17} 260, ${340+i*17} 430 S ${490+i*16} 690, ${360+i*20} 950`} />)}
-    </g>
-  </svg>
+  <div class="light-specks">
+    {[[79, 18], [91, 35], [84, 57], [95, 74], [5, 69], [11, 87]].map(([x, y], i) => <i style={`left: ${x}%; top: ${y}%; --delay: ${i * -3}s;`} />)}
+  </div>
 </div>
 <button type="button" class="effects-toggle" aria-label="暂停首页动效" aria-pressed="false" hidden><span aria-hidden="true">Ⅱ</span><span class="toggle-label">暂停动效</span></button>
 
@@ -31,12 +13,14 @@ const lowerRibbons = Array.from({ length: 8 }, (_, i) => `M -100 ${480 + i * 28}
   :global(body:has(.home-effects) .site) { position: relative; z-index: 1; }
   :global(body:has(.home-effects) .skip) { z-index: 4; }
   .home-effects { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-  .home-effects svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .mobile-ribbons { display: none; }
-  .color-wash { position: absolute; inset: -8%; background: radial-gradient(ellipse at 88% 18%, #bde6e04d, transparent 40%), radial-gradient(ellipse at 2% 78%, #d4e4cc47, transparent 34%), radial-gradient(ellipse at 95% 92%, #dcdcf047, transparent 36%); }
-  .pointer-light { position: absolute; inset: 0; background: radial-gradient(340px circle at var(--pointer-x, 85%) var(--pointer-y, 25%), #a2d7c71c, transparent 85%); }
-  .light-trail { opacity: .5; }
-  .particles { opacity: .45; }
+  .glow { position: absolute; width: clamp(460px, 65vw, 920px); height: clamp(520px, 85vh, 900px); border-radius: 50%; }
+  .glow-mint { right: -230px; top: -230px; background: radial-gradient(ellipse at center, #b4dccc85 0%, #cbe7da4d 32%, #e3efe41a 55%, transparent 72%); }
+  .glow-blue { right: -280px; top: 14%; background: radial-gradient(ellipse at center, #c3d6ef80 0%, #dbe3f24d 32%, #e8eaf51a 54%, transparent 72%); }
+  .glow-warm { left: -340px; bottom: -360px; background: radial-gradient(ellipse at center, #ead9b66b 0%, #e9e4cd47 35%, #eef0df1a 56%, transparent 72%); }
+  .pointer-light { position: absolute; inset: 0; background: radial-gradient(320px circle at var(--pointer-x, 85%) var(--pointer-y, 25%), #b9decc1f, transparent 85%); }
+  .light-specks { position: absolute; inset: 0; }
+  .light-specks i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #9cbbb28c; box-shadow: 0 0 9px 3px #ffffffa6; opacity: .65; }
+  .light-specks i:nth-child(2n) { width: 2px; height: 2px; background: #9eafc491; }
   .effects-toggle { position: fixed; right: 18px; bottom: 16px; z-index: 3; display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 4px 10px; border: 1px solid #dbe4dc; border-radius: 20px; color: #63786d; background: #fafaf7e8; font-family: inherit; font-size: 11px; cursor: pointer; }
   .effects-toggle[hidden] { display: none; }
   .effects-toggle:hover { color: var(--accent); border-color: #adc6b9; }
@@ -45,25 +29,27 @@ const lowerRibbons = Array.from({ length: 8 }, (_, i) => `M -100 ${480 + i * 28}
   :global(.intro-links .primary-link) { border-color: transparent; background: linear-gradient(#eff8f1, #eff8f1) padding-box, conic-gradient(from var(--cta-angle), #c8e2ce, #75b8aa, #c8e2ce, #a1c2de, #c8e2ce) border-box; }
   :global(.intro-links .primary-link:hover), :global(.intro-links .primary-link:focus-visible) { background: linear-gradient(#e5f4eb, #e5f4eb) padding-box, conic-gradient(from var(--cta-angle), #a2d0b7, #55a897, #a2d0b7, #8aafd0, #a2d0b7) border-box; }
   @media (prefers-reduced-motion: no-preference) {
-    .color-wash { animation: wash-drift 18s ease-in-out infinite alternate; }
-    .ribbon-field { transform-origin: 85% 40%; animation: ribbon-drift 16s ease-in-out infinite alternate; }
-    .lower-field { animation: ribbon-drift 20s ease-in-out infinite alternate-reverse; }
-    .light-trail { animation: light-flow 28s var(--delay) linear infinite; }
-    .particles circle { animation: particle-drift 12s var(--delay) ease-in-out infinite alternate; }
+    .glow-mint { animation: mint-drift 22s ease-in-out infinite alternate; }
+    .glow-blue { animation: blue-drift 26s -9s ease-in-out infinite alternate; }
+    .glow-warm { animation: warm-drift 28s -12s ease-in-out infinite alternate; }
+    .light-specks i { animation: speck-drift 14s var(--delay) ease-in-out infinite alternate; }
     :global(.intro-links .primary-link) { animation: border-flow 7s linear infinite; transition: transform 180ms ease, box-shadow 180ms ease; }
     :global(.intro-links .primary-link:hover), :global(.intro-links .primary-link:focus-visible) { transform: translateY(-2px); }
     :global(.primary-link span) { animation: arrow-invite 4.5s ease-in-out infinite; }
     :global(body[data-motion-paused="true"] .home-effects *), :global(body[data-motion-paused="true"] .primary-link), :global(body[data-motion-paused="true"] .primary-link span) { animation-play-state: paused; }
   }
-  @keyframes wash-drift { to { transform: translate(-2%, 3%) scale(1.05); } }
-  @keyframes ribbon-drift { to { transform: translate(-15px, 12px) rotate(-2deg); } }
-  @keyframes light-flow { to { stroke-dashoffset: -766; } }
-  @keyframes particle-drift { to { transform: translate(9px, -18px); opacity: .3; } }
+  @keyframes mint-drift { to { transform: translate(-70px, 50px) scale(1.08); opacity: .75; } }
+  @keyframes blue-drift { to { transform: translate(40px, -70px) scale(.93); opacity: .7; } }
+  @keyframes warm-drift { to { transform: translate(55px, -40px); opacity: .65; } }
+  @keyframes speck-drift { to { transform: translate(8px, -20px); opacity: .25; } }
   @keyframes border-flow { to { --cta-angle: 360deg; } }
   @keyframes arrow-invite { 0%, 65%, 100% { transform: translateY(0); } 76% { transform: translateY(3px); } 88% { transform: translateY(0); } }
   @media (max-width: 760px) {
-    .desktop-ribbons { display: none; }
-    .mobile-ribbons { display: block; }
+    .glow { width: 540px; height: 660px; }
+    .glow-mint { right: -320px; top: -230px; }
+    .glow-blue { right: -340px; top: 20%; }
+    .glow-warm { left: -360px; bottom: -330px; }
+    .light-specks i:nth-child(n+4) { display: none; }
     .pointer-light { display: none; }
     .effects-toggle { right: 10px; bottom: 10px; font-size: 10px; }
   }
