@@ -1,0 +1,97 @@
+<div class="home-motion" data-paused="false" data-offscreen="false">
+  <div class="ambient" aria-hidden="true"><div class="ambient-light"></div></div>
+  <div class="compute-scene">
+    <svg viewBox="0 0 320 260" fill="none" aria-hidden="true">
+      <g class="connections">
+        <path d="M26 107H95M26 131H95M26 155H95" />
+        <path d="M193 131H237Q245 131 245 139V165M193 107H282" />
+        <path d="M265 213V228Q265 238 255 238H54Q44 238 44 228V181" stroke-dasharray="3 6" />
+      </g>
+      <g class="token-stream">
+        {[0, 1, 2].map(row => <rect class="token" x="29" y={102 + row * 24} width="10" height="10" rx="3" style={`--delay: ${row * -1.8}s`} />)}
+      </g>
+      <g class="tensor">
+        <rect x="110" y="60" width="88" height="102" rx="7" class="tensor-back" />
+        <rect x="102" y="68" width="88" height="102" rx="7" class="tensor-middle" />
+        <rect x="94" y="76" width="88" height="102" rx="7" class="tensor-front" />
+        {Array.from({length: 4}, (_, row) => Array.from({length: 4}, (_, col) => <rect class="cell" x={105 + col * 18} y={90 + row * 20} width="12" height="12" rx="2" style={`--delay: ${-(row + col) * .65}s`} />))}
+      </g>
+      <g class="cache">
+        {[0, 1, 2].map(row => <g>
+          <rect x="225" y={165 + row * 16} width="64" height="11" rx="3" class="cache-slot" />
+          <rect x="230" y={169 + row * 16} width={24 + row * 8} height="3" rx="1.5" class="cache-fill" style={`--delay: ${row * -2}s`} />
+        </g>)}
+      </g>
+      <circle class="output-dot" cx="281" cy="107" r="4" />
+      <g class="labels" fill="currentColor" stroke="none">
+        <text x="24" y="85">TOKEN</text>
+        <text x="100" y="48">COMPUTE</text>
+        <text x="225" y="153">KV CACHE</text>
+      </g>
+    </svg>
+    <div class="motion-caption"><span>推理之间，状态流动。</span><button type="button" class="motion-toggle" aria-label="暂停首页动效" aria-pressed="false" hidden><span class="pause-symbol" aria-hidden="true">Ⅱ</span><span class="play-symbol" aria-hidden="true">▷</span></button></div>
+  </div>
+</div>
+
+<style>
+  :global(.intro) { position: relative; isolation: isolate; }
+  :global(.intro > :not(.home-motion)) { position: relative; z-index: 1; }
+  .home-motion { position: absolute; inset: 0; pointer-events: none; }
+  .ambient { position: absolute; inset: -55px 0 -8px; z-index: -1; overflow: hidden; pointer-events: none; background-image: radial-gradient(#35644f23 .7px, transparent .9px); background-size: 24px 24px; mask-image: linear-gradient(90deg, #0003, transparent 42%, #000b), linear-gradient(transparent, #000 25%, #000 70%, transparent); mask-composite: intersect; }
+  .ambient-light { position: absolute; width: 470px; height: 390px; right: -40px; top: -15px; background: radial-gradient(ellipse, #a9c39d24, transparent 68%); }
+  .compute-scene { position: absolute; right: 0; top: 15px; width: 300px; color: #678374; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .connections { stroke: #b6c5b7; stroke-width: 1; }
+  .token { fill: #709781; opacity: .65; }
+  .tensor-back { fill: #eaf0e4; stroke: #c3d0bd; }
+  .tensor-middle { fill: #f1f4ed; stroke: #b8c9b7; }
+  .tensor-front { fill: #fafbf7; stroke: #9cb69e; }
+  .cell { fill: #89ab90; opacity: .28; }
+  .cache-slot { fill: #f0f3eb; stroke: #c0cebd; }
+  .cache-fill { fill: #83a18a; opacity: .6; }
+  .output-dot { fill: #6f927a; opacity: .55; }
+  .labels { font: 8px ui-monospace, SFMono-Regular, monospace; letter-spacing: 1.1px; }
+  .motion-caption { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 5px; font-size: 11px; letter-spacing: .05em; }
+  .motion-toggle { pointer-events: auto; display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 1px solid #cdd7c9; border-radius: 50%; background: var(--paper); color: var(--accent); font-size: 13px; cursor: pointer; }
+  .motion-toggle[hidden] { display: none; }
+  .motion-toggle:hover { background: var(--wash); }
+  .motion-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .play-symbol { display: none; }
+  [data-paused="true"] .pause-symbol { display: none; }
+  [data-paused="true"] .play-symbol { display: inline; }
+  @media (prefers-reduced-motion: no-preference) {
+    .token { animation: token-travel 6s var(--delay) ease-in-out infinite; }
+    .cell { animation: compute-wave 7s var(--delay) ease-in-out infinite; }
+    .cache-fill, .output-dot { animation: compute-wave 8s var(--delay, 0s) ease-in-out infinite; }
+    .ambient-light { animation: ambient-drift 20s ease-in-out infinite alternate; }
+    [data-paused="true"] *, [data-offscreen="true"] * { animation-play-state: paused; }
+  }
+  @keyframes token-travel { 0%, 12% { transform: translateX(0); opacity: .15; } 25% { opacity: .7; } 65%, 100% { transform: translateX(54px); opacity: 0; } }
+  @keyframes compute-wave { 0%, 100% { opacity: .2; } 45% { opacity: .72; } }
+  @keyframes ambient-drift { to { transform: translate(-55px, 25px); opacity: .45; } }
+  @media (max-width: 1050px) { .compute-scene { width: 240px; top: 38px; } }
+  @media (max-width: 1000px) {
+    .compute-scene { display: none; }
+    .ambient { inset: -30px 0 -8px; }
+    .ambient-light { animation: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .motion-toggle { display: none; } }
+</style>
+
+<script>
+  const scene = document.querySelector<HTMLElement>('.home-motion');
+  const button = scene?.querySelector<HTMLButtonElement>('.motion-toggle');
+  if (scene && button) {
+    button.hidden = false;
+    button.addEventListener('click', () => {
+      const paused = scene.dataset.paused !== 'true';
+      scene.dataset.paused = String(paused);
+      button.setAttribute('aria-pressed', String(paused));
+      button.setAttribute('aria-label', paused ? '播放首页动效' : '暂停首页动效');
+    });
+    let visible = true;
+    const update = () => { scene.dataset.offscreen = String(!visible || document.hidden); };
+    new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; update(); }).observe(scene);
+    document.addEventListener('visibilitychange', update);
+  }
+</script>
