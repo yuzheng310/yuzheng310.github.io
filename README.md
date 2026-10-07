@@ -40,7 +40,7 @@ npm run build
 - 8 篇 HTML 发布副本留在 `references/translations/` 作为改写参考，不参与网站渲染。站内正文以 Markdown 为准，后续修改直接编辑正文；旧的全页 HTML 导入器已移除，避免覆盖编辑结果。
 - 图片来源记录于 `scripts/translation-assets.json`；第三方资源许可证保留。
 
-Mooncake、Continuum 为论文精读改写，py-kvcache 为选章译文整理。`llm-inference-explained` 的来源文件仅保留 Avi Chawla 的作者主页，文章直链待补。
+Mooncake、Continuum 为论文精读改写，py-kvcache 为选章译文整理。Avi Chawla 的大模型推理图解系列（推理机制与并行策略）已补齐原文直链与完整架构图解。
 
 发布前运行 `npm run build`，检查站内链接、公式、图片、目录和移动端布局。
 

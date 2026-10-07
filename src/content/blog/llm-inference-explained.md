@@ -3,7 +3,7 @@ title: "图解大模型推理：从 Prefill 到 Decode"
 description: "沿分词、注意力、KV Cache 和解码的执行路径，理解推理延迟与吞吐瓶颈。"
 date: "2026-10-06"
 tags: ["翻译", "大模型推理", "KV Cache", "性能分析"]
-sourceURL: "https://x.com/_avichawla"
+sourceURL: "https://x.com/_avichawla/status/2071201619530956863"
 sourceAuthor: "Avi Chawla"
 translationScope: "依据已有中文译稿重新编排与整理；保留原文来源，包含整理者的解释。"
 ---
