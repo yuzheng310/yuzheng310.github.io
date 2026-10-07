@@ -2,6 +2,12 @@
 
 配置记录（2026-10-07）：GitHub App 已创建并仅安装到本站仓库；Worker 已部署到 `https://yuzheng-article-editor.2565554517.workers.dev`，登录与会话密钥已保存在 Cloudflare Secrets。应用和服务的非敏感标识见 `wrangler.toml`。未设置 `PUBLIC_AUTHOR_API_URL` 时，正式网站不显示编辑入口。本实现是轻量页内编辑层，使用 GitHub App 登录和 GitHub 历史，不是 TinaCMS 集成。
 
+## 上线验收记录
+
+2026-10-07：正式文章页已通过 GitHub 作者登录；在网页中添加临时导语并确认发布，生成提交 `9bf7522`，自动部署后在正式页面确认可见，随后恢复文章原内容。匿名读取/发布返回 401，其他 Origin 返回 403；本地 10 项自动测试与正式构建、链接检查通过。其他真实账号的登录拒绝尚未人工验收，服务端身份拒绝已由自动测试覆盖。
+
+本站部署由 GitHub Actions 自动完成；Worker 后续更新在本目录使用 `npx wrangler@4.148.0 deploy`。官方工具凭据以加密文件保存，密钥在 macOS 钥匙串中。若重新登录，所需权限为 `account:read user:read workers:write workers_scripts:write`，无需申请默认的其他产品权限。
+
 ## 使用方式
 
 文章标题下点击「作者编辑」，用网站作者的 GitHub 账号登录。在同一段普通文字内选择内容，修改、高亮或添加公开批注；底部工具栏可编辑导语、撤销和预览后发布。导语显示在正文前；批注保存为公开脚注，可从正文跳转。原有公式、代码、图片和目录继续使用现有渲染器。
