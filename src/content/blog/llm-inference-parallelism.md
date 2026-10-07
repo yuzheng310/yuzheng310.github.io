@@ -30,11 +30,11 @@ translationScope: "依据原作者发布的大模型推理并行技术长文翻�
 
 在评估每种并行策略时，我们需要带着以下五个关键问题进行对比：
 
-- **切分了什么状态？**（What state is partitioned?）
-- **保留/复制了什么状态？**（What remains replicated?）
-- **互连总线上跨卡传输了什么？**（What crosses the interconnect?）
-- **传输发生的频次是多少？**（How often does that transfer occur?）
-- **该拓扑改善的是显存容量、单请求时延，还是系统吞吐量？**（Does the layout improve memory capacity, request latency, or throughput?）
+- **<mark class="author-highlight">切分了什么状态？</mark>**<mark class="author-highlight">（What state is partitioned?）</mark>
+- **<mark class="author-highlight">保留/复制了什么状态？</mark>**<mark class="author-highlight">（What remains replicated?）</mark>
+- **<mark class="author-highlight">互连总线上跨卡传输了什么？</mark>**<mark class="author-highlight">（What crosses the interconnect?）</mark>
+- **<mark class="author-highlight">传输发生的频次是多少？</mark>**<mark class="author-highlight">（How often does that transfer occur?）</mark>
+- **<mark class="author-highlight">该拓扑改善的是显存容量、单请求时延，还是系统吞吐量？</mark>**<mark class="author-highlight">（Does the layout improve memory capacity, request latency, or throughput?）</mark>
 
 在本文的后续讨论中，我们统一设定一个基准硬件环境：一台搭载 4 张 GPU 的服务器。待部署的模型至少需要 2 张 GPU 的显存才能装下，且服务器同时承接简短对话与长上下文请求。我们保持模型、请求负载与底层硬件不变，仅改变推理任务在 4 张 GPU 之间的切分方式。
 
