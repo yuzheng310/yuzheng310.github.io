@@ -10,7 +10,7 @@ translationScope: "依据原作者发布的大模型推理并行技术长文翻�
 
 如何将大模型推理负载切分到多张 GPU 上，同时不让通信开销侵蚀性能？本文系统梳理数据并行（DP）、张量并行（TP）、流水线并行（PP）、上下文并行（CP）与专家并行（EP），阐述它们的混合编排方式，并给出根据模型、硬件和工作负载选择合适部署拓扑的工程检查清单与决策框架。
 
----
+***
 
 ## 为什么需要分布式推理
 
@@ -30,19 +30,19 @@ translationScope: "依据原作者发布的大模型推理并行技术长文翻�
 
 在评估每种并行策略时，我们需要带着以下五个关键问题进行对比：
 
-- **<mark class="author-highlight">切分了什么状态？</mark>**<mark class="author-highlight">（What state is partitioned?）</mark>
-- **<mark class="author-highlight">保留/复制了什么状态？</mark>**<mark class="author-highlight">（What remains replicated?）</mark>
-- **<mark class="author-highlight">互连总线上跨卡传输了什么？</mark>**<mark class="author-highlight">（What crosses the interconnect?）</mark>
-- **<mark class="author-highlight">传输发生的频次是多少？</mark>**<mark class="author-highlight">（How often does that transfer occur?）</mark>
-- **<mark class="author-highlight">该拓扑改善的是显存容量、单请求时延，还是系统吞吐量？</mark>**<mark class="author-highlight">（Does the layout improve memory capacity, request latency, or throughput?）</mark>
+* **<mark class="author-highlight">切分了什么状态？</mark>**<mark class="author-highlight">（What state is partitioned?）</mark>
+* **<mark class="author-highlight">保留/复制了什么状态？</mark>**<mark class="author-highlight">（What remains replicated?）</mark>
+* **<mark class="author-highlight">互连总线上跨卡传输了什么？</mark>**<mark class="author-highlight">（What crosses the interconnect?）</mark>
+* **<mark class="author-highlight">传输发生的频次是多少？</mark>**<mark class="author-highlight">（How often does that transfer occur?）</mark>
+* **<mark class="author-highlight">该拓扑改善的是显存容量、单请求时延，还是系统吞吐量？</mark>**<mark class="author-highlight">（Does the layout improve memory capacity, request latency, or throughput?）</mark>
 
 在本文的后续讨论中，我们统一设定一个基准硬件环境：一台搭载 4 张 GPU 的服务器。待部署的模型至少需要 2 张 GPU 的显存才能装下，且服务器同时承接简短对话与长上下文请求。我们保持模型、请求负载与底层硬件不变，仅改变推理任务在 4 张 GPU 之间的切分方式。
 
 > **关于集合通信（Collective Communication）**
-> 
+>
 > 本文会频繁使用“集合通信”这一概念。集合通信指多个 GPU 作为一个通信组共同交换或聚合数据的操作。例如，两张 GPU 分别计算某一层的部分输出，All-Reduce 会将各卡的部分和累加，并将完整结果同步回每张 GPU。通信组内的每张 GPU 都必须完成各自的任务，集合通信才算结束。因此，任何一张较慢的 GPU 或较慢的通信链路都会拖慢整个通信组（即长尾掉队效应，Straggler Effect）。这与两张卡之间的直接点对点传输不同。
 
----
+***
 
 ## 大模型推理基础与性能指标
 
@@ -54,8 +54,8 @@ translationScope: "依据原作者发布的大模型推理并行技术长文翻�
 
 *图 2 大模型推理包含 Prefill（预填充）与 Decode（解码）两个阶段*
 
-- **Prefill（预填充）阶段**：处理输入的 Prompt 并构建对应的 Key-Value Cache。它同时处理大量 Prompt Token，计算以大规模矩阵乘法为主。Prefill 阶段直接决定了**首字时延（Time to First Token，TTFT）**。
-- **Decode（解码）阶段**：自回归逐步生成后续 Token，每步只生成一个 Token。每一步都需要重新读取模型权重并访问持续增长的 KV Cache。Decode 阶段直接决定了**每输出 Token 耗时（Time Per Output Token，TPOT）**，在某些系统中也称为 Token 间时延（Inter-Token Latency，ITL）。
+* **<mark class="author-highlight">Prefill（预填充）阶段</mark>**<mark class="author-highlight">：处理输入的 Prompt 并构建对应的 Key-Value Cache。它同时处理大量 Prompt Token，计算以大规模矩阵乘法为主。Prefill 阶段直接决定了**首字时延（Time to First Token，TTFT）**。</mark>
+* **<mark class="author-highlight">Decode（解码）阶段</mark>**<mark class="author-highlight">：自回归逐步生成后续 Token，每步只生成一个 Token。每一步都需要重新读取模型权重并访问持续增长的 KV Cache。Decode 阶段直接决定了**每输出 Token 耗时（Time Per Output Token，TPOT）**，在某些系统中也称为 Token 间时延（Inter-Token Latency，ITL）。</mark>
 
 ![预填充与解码时间线](/translations/images/15c44a56e2588dc8.jpg)
 
@@ -63,8 +63,8 @@ translationScope: "依据原作者发布的大模型推理并行技术长文翻�
 
 这两个阶段对硬件资源的利用特征截然不同：
 
-- Prefill 通常在大量 Prompt Token 上执行大尺寸矩阵乘法，算术密度高，通常处于**计算受限（Compute-bound）**状态。
-- Decode 执行小尺寸算子，每步反复读取权重与 KV Cache，通常处于**访存受限（Memory-bound）**状态。一种能够缩短 Prefill 时延的切分方案，如果给每个解码生成的 Token 都增加了跨卡同步开销，反而可能会拖慢 Decode 阶段。
+* Prefill 通常在大量 Prompt Token 上执行大尺寸矩阵乘法，算术密度高，通常处于\*\*计算受限（Compute-bound）\*\*状态。
+* Decode 执行小尺寸算子，每步反复读取权重与 KV Cache，通常处于\*\*访存受限（Memory-bound）\*\*状态。一种能够缩短 Prefill 时延的切分方案，如果给每个解码生成的 Token 都增加了跨卡同步开销，反而可能会拖慢 Decode 阶段。
 
 关于推理内部执行路径更详细的剖析，可参阅此前的精读笔记：[图解大模型推理：从 Prefill 到 Decode](/blog/llm-inference-explained/)。
 
@@ -79,11 +79,11 @@ translationScope: "依据原作者发布的大模型推理并行技术长文翻�
 
 服务端的观测指标必须与业务目标直接对应：
 
-- **TTFT**：衡量初始响应速度。
-- **TPOT**：衡量文本流式生成的步频与流畅度。
-- **请求吞吐量（Request Throughput）**：单位时间内完成的完整请求数（Req/s）。
-- **Token 吞吐量（Token Throughput）**：区分统计输入 Token 与输出 Token 的处理速率（Tokens/s）。
-- **有效吞吐量（Goodput）**：仅统计满足服务等级目标（SLO/SLA）的请求吞吐。
+* **TTFT**：衡量初始响应速度。
+* **TPOT**：衡量文本流式生成的步频与流畅度。
+* **请求吞吐量（Request Throughput）**：单位时间内完成的完整请求数（Req/s）。
+* **Token 吞吐量（Token Throughput）**：区分统计输入 Token 与输出 Token 的处理速率（Tokens/s）。
+* **有效吞吐量（Goodput）**：仅统计满足服务等级目标（SLO/SLA）的请求吞吐。
 
 对任何指标取平均值都会掩盖长尾延迟，因此必须同时监控中位数（P50）与高分位值（如 P95、P99）。
 
@@ -107,7 +107,7 @@ P95 TTFT 表示 95% 的请求都能在该阈值内生成首字。在相同的请
 
 我们首先从数据并行讲起，因为数据并行将单次前向传播完全保留在单个副本内部；而其他并行方式则是将单次前向传播切分到多张 GPU 上，直接把通信开销置于执行路径之中。
 
----
+***
 
 ## 1. 数据并行（Data Parallelism, DP）
 
@@ -142,7 +142,7 @@ P95 TTFT 表示 95% 的请求都能在该阈值内生成首字。在相同的请
 
 当流量处于低谷时，第 2 个副本处于空闲状态，完全无法降低单个请求的时延。只有当单副本能够装下模型，且并发请求量足够高、能够让多个副本充分运转时，才应当采用数据并行。
 
----
+***
 
 ## 2. 张量并行（Tensor Parallelism, TP）
 
@@ -161,8 +161,9 @@ Megatron-LM 经典论文中给出了双层投影的切分构造。我们可以�
 *图 8 MLP 模块中各张量的维度与依赖关系：输入 $X$、权重 $A$ 与 $B$、中间激活以及输出*
 
 在 2 个 Rank 的配置下：
-- 第一层权重矩阵 $A$ 按**列切分（Column Parallel）**，每个 Rank 计算不同的中间特征分量。
-- 第二层权重矩阵 $B$ 按**行切分（Row Parallel）**，<mark class="author-highlight">每个 Rank 消费与其对应的中间特征切片。两张卡各自计算出部分输出张量（Partial Sum）。</mark>[^author-1]
+
+* 第一层权重矩阵 $A$ 按**列切分（Column Parallel）**，每个 Rank 计算不同的中间特征分量。
+* 第二层权重矩阵 $B$ 按**行切分（Row Parallel）**，<mark class="author-highlight">每个 Rank 消费与其对应的中间特征切片。两张卡各自计算出部分输出张量（Partial Sum）。</mark>[^author-1]
 
 ![双 Rank 计算与 All-Reduce 规约](/translations/images/5f20277c391772a3.jpg)
 
@@ -195,25 +196,27 @@ tensor_parallel_output = [[-3.294438, 1.406896]]
 
 自注意力（Self-Attention）机制采用相同的核心思路：
 
-- Query、Key、Value 投影矩阵按注意力头维度进行列切分。
-- 输出投影（Out Projection）矩阵按行切分，并通过 All-Reduce 聚合各头部的局部结果。
-- 具体的切分布局取决于多头注意力（MHA）、分组查询注意力（GQA）的配置以及模型专用的算子实现。
+* Query、Key、Value 投影矩阵按注意力头维度进行列切分。
+* 输出投影（Out Projection）矩阵按行切分，并通过 All-Reduce 聚合各头部的局部结果。
+* 具体的切分布局取决于多头注意力（MHA）、分组查询注意力（GQA）的配置以及模型专用的算子实现。
 
 ![双 Rank 的张量并行 MLP](/translations/images/48593e7eed0cfcdf.jpg)
 
 *图 10 双 Rank 的张量并行 MLP：第一层投影切分计算，第二层投影的部分结果通过 All-Reduce 聚合*
 
 在选择张量并行度（TP Degree）前，需要明确两个基本概念：
-- **张量并行通信组（TP Group）**：共同处理同一个请求的一组 GPU。
-- **Rank**：通信组内的具体 GPU 进程。TP=2 包含 2 个 Rank，TP=4 包含 4 个 Rank。
+
+* **张量并行通信组（TP Group）**：共同处理同一个请求的一组 GPU。
+* **Rank**：通信组内的具体 GPU 进程。TP=2 包含 2 个 Rank，TP=4 包含 4 个 Rank。
 
 ![TP2 与 TP4 的切分粒度](/translations/images/f6406615eb661e4d.jpg)
 
 *图 11 提高 TP 度数会使每个分片矩阵变小，但会增加参与集合通信的 Rank 数量*
 
 提高 TP 度数会将每个分片矩阵切得更细。以输出维度为 8,192 列的矩阵为例：
-- TP=2 时，每个 Rank 分配 4,096 列。
-- TP=4 时，每个 Rank 分配 2,048 列。
+
+* TP=2 时，每个 Rank 分配 4,096 列。
+* TP=4 时，每个 Rank 分配 2,048 列。
 
 各 GPU 存储的权重更少，单次执行的矩阵乘法规模更小。这看似是直接的性能提升，但层计算无法使用孤立的局部结果继续向下传播，各个 Rank 必须互相交换或聚合数据。
 
@@ -243,7 +246,7 @@ tensor_parallel_output = [[-3.294438, 1.406896]]
 
 对于我们的 4 卡服务器：由于模型需要两张卡才能装下，基准方案应选择 TP=2。若 TP=2 满足延迟目标，剩余两张卡应搭建第二个 TP=2 副本以增加吞吐；只有在 TP=2 依然超显存或无法满足单请求时延 SLO 时，才升级到 TP=4。
 
----
+***
 
 ## 3. 流水线并行（Pipeline Parallelism, PP）
 
@@ -251,8 +254,8 @@ tensor_parallel_output = [[-3.294438, 1.406896]]
 
 此时，流水线并行提供了另一种模型放置方案：**沿模型深度切分**。将连续的一组 Transformer 层放置在同一个阶段（Stage），仅当执行跨越阶段边界时才传递中间激活值（Hidden States）。
 
-- Stage 0 运行前一部分网络层，将输出激活值传递给 Stage 1。
-- 最后一个 Stage 运行末尾网络层，并计算最终的词表 Logits。
+* Stage 0 运行前一部分网络层，将输出激活值传递给 Stage 1。
+* 最后一个 Stage 运行末尾网络层，并计算最终的词表 Logits。
 
 请求依然需要严格按顺序流经所有阶段，但任何一个阶段的权重都持久保留在其本地 GPU（或本地 TP 组）中。
 
@@ -284,23 +287,26 @@ tensor_parallel_output = [[-3.294438, 1.406896]]
 
 对于我们的 4 卡服务器：只有在模型必须占满全部 4 张卡、且在线流量并发足以填满 4 个阶段时，PP=4 才有意义。如果硬件是“两张卡之间有高速互连、两个卡对之间链路较慢”，则**阶段内 TP=2 + 阶段间 PP=2** 的混合配置更为合理：高频的张量聚合被限制在高速链路内，低频的激活传递走较慢的跨组链路。
 
----
+***
 
 ## 4. 上下文并行（Context Parallelism, CP）
 
 假设模型权重已经可以装入显存，但面对超长上下文请求时出现以下两类瓶颈之一：
-- 长 Prompt 在 Prefill 阶段无法达到 TTFT 延迟目标；
-- 长文本的 KV Cache 消耗了过多显存，导致 Decode 阶段允许并发的请求数过低。
 
-上下文并行通过**切分序列位置维度（Sequence Positions）**而非模型权重来解决这一问题。针对上述两类瓶颈，上下文并行演化出了两套截然不同的机制：
-- **Prefill 上下文并行（PCP）**：切分输入 Prompt 的计算负载。
-- **Decode 上下文并行（DCP）**：切分存储在显存中的历史 KV Cache。
+* 长 Prompt 在 Prefill 阶段无法达到 TTFT 延迟目标；
+* 长文本的 KV Cache 消耗了过多显存，导致 Decode 阶段允许并发的请求数过低。
+
+上下文并行通过\*\*切分序列位置维度（Sequence Positions）\*\*而非模型权重来解决这一问题。针对上述两类瓶颈，上下文并行演化出了两套截然不同的机制：
+
+* **Prefill 上下文并行（PCP）**：切分输入 Prompt 的计算负载。
+* **Decode 上下文并行（DCP）**：切分存储在显存中的历史 KV Cache。
 
 ### Prefill 上下文并行（PCP）
 
 PCP 将 Prompt Token 序列均分给各个 Rank。每个 Rank 为其本地负责的 Token 分块独立计算 Query、Key 和 Value 张量。但注意力运算机制要求每个 Query 必须能与全部所需的 Key/Value 进行交互。
 
 常见实现方式有两种：
+
 1. **全收集方式（All-Gather）**：在每张卡上将完整的 K、V 张量收集齐备，各卡用本地 Query 计算全局上下文。这只在收集后的张量不超出显存时可行。
 2. **分块循环传递（Ring Attention 风格）**：各卡循环轮转部分 KV 分块，逐步增量聚合局部的注意力输出。这避免了在任何单卡上物化完整的全局序列，但需要多轮通信迭代。
 
@@ -358,10 +364,10 @@ merged_attention_output = [0.769627, 0.779901]
 2. **解码延迟代价**：每个 Decoder 层都必须合并局部注意力结果，这会不可避免地拉长 TPOT。只有当获得的 KV 显存容量或所支持的上下文长度收益高于每步合并的延迟代价时，DCP 才有实用价值。
 
 > **序列并行（Sequence Parallelism, SP）辨析**：
-> 
+>
 > Megatron 风格的序列并行通常是指在张量并行中，沿着序列维度对 LayerNorm 和 Dropout 的激活值进行切分以节省显存。而上下文并行（CP）是指将 Attention 机制本身的上下文序列跨卡切分。各开源框架在命名习惯上略有差异，切勿混淆。
 
----
+***
 
 ## 5. 专家并行（Expert Parallelism, EP）
 
@@ -391,7 +397,7 @@ merged_attention_output = [0.769627, 0.779901]
 
 > **注意**：注意力和专家层不需要采用相同的切分策略。稠密注意力层可以使用 DP 或 TP，而 MoE 前馈层则可以采用 EP。
 
----
+***
 
 ## 6. 混合并行（Hybrid Parallelism）
 
@@ -401,7 +407,7 @@ merged_attention_output = [0.769627, 0.779901]
 
 对于独立的稠密模型，总的工作节点数等于各并行度的乘积：
 
-$$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$$
+$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$
 
 ![混合并行组合维度](/translations/images/a4387fec1085ef45.jpg)
 
@@ -411,8 +417,8 @@ $$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$$
 
 以部署在 2 台 4 卡服务器上的 8 张 GPU 为例。节点内 GPU 互连带宽极高且延迟极低，而跨节点网络带宽相对较低：
 
-- **方案 A**：节点内采用 TP=4，节点间采用 PP=2。高频的 Transformer 层内 All-Reduce 完全限制在节点内部的高速总线上，仅在跨节点时传输阶段间的激活值。8 张卡共同构成 1 个大模型实例。
-- **方案 B**：如果该模型在 4 张卡上已经能够装下，则另一种方案更加优越：节点内采用 TP=4，节点间采用 DP=2 构成两个独立副本。请求完全无需穿过慢速的跨节点网络。
+* **方案 A**：节点内采用 TP=4，节点间采用 PP=2。高频的 Transformer 层内 All-Reduce 完全限制在节点内部的高速总线上，仅在跨节点时传输阶段间的激活值。8 张卡共同构成 1 个大模型实例。
+* **方案 B**：如果该模型在 4 张卡上已经能够装下，则另一种方案更加优越：节点内采用 TP=4，节点间采用 DP=2 构成两个独立副本。请求完全无需穿过慢速的跨节点网络。
 
 ![混合并行与物理拓扑映射](/translations/images/d260e485d009a0cb.jpg)
 
@@ -421,6 +427,7 @@ $$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$$
 *读图提示：推理 DP 的副本独立处理请求，图中的双向箭头不表示副本之间需要同步梯度。*
 
 构建混合拓扑时应遵循以下固定顺序：
+
 1. 首先选择能让单个 Stage 放下的**最小 TP 组**，并将其绑定在最快的互连链路上。
 2. 只有当模型尺寸必须跨越慢速网络边界时，才引入 **PP**。
 3. 在单个完整模型实例能够放下后，引入 **DP** 扩充并发吞吐。
@@ -430,11 +437,12 @@ $$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$$
 
 ### 预填充与解码解耦（PD 分离）
 
-当 Prefill 和 Decode 两个阶段对硬件的诉求存在显著结构性冲突时，**PD 分离（Prefill and Decode Disaggregation）**成为极具价值的系统架构。
+当 Prefill 和 Decode 两个阶段对硬件的诉求存在显著结构性冲突时，\*\*PD 分离（Prefill and Decode Disaggregation）\*\*成为极具价值的系统架构。
 
 系统设立独立的 Prefill 工作池与 Decode 工作池：
-- Prefill 池配置高算力硬件，优先追求大规模矩阵计算吞吐；
-- Decode 池配置高显存带宽与大容量显存，优先追求高 KV 缓存容量与稳定的步进生成。
+
+* Prefill 池配置高算力硬件，优先追求大规模矩阵计算吞吐；
+* Decode 池配置高显存带宽与大容量显存，优先追求高 KV 缓存容量与稳定的步进生成。
 
 ![Prefill 与 Decode 分离架构（PD 分离）](/translations/images/4f8797baf1b4985b.jpg)
 
@@ -442,7 +450,7 @@ $$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$$
 
 两池之间通过高速网络传输完成 Prefill 后的 KV Cache 状态。需要强调的是：**PD 分离并不能替代 TP、PP 或 CP**；每一个独立的工作池内部依然需要规划各自的模型放置与并行切分方案。
 
----
+***
 
 ## 落地决策框架（Decision Framework）
 
@@ -455,8 +463,8 @@ $$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$$
 *读图提示：原图“规模 ≥ 互连带宽”的量纲与含义不明确，且混入“训练时延”。此处保留原图信息供对照，部署决策请结合正文。*
 
 1. **第一步：判断完整模型是否能装入单卡？**
-   - **如果能装下**：从单副本开始。当并发流量上升时，通过**数据并行（DP）**增加副本数量，并在网关路由器中启用感知前缀缓存的调度策略。
-   - **如果装不下**：寻找能装下模型的**最小张量并行度（TP）**，并在该 TP 度数下压测 Decode 延迟。如果网络对等连接较慢、或者各网络层组执行时间均衡，可考虑引入流水线并行（PP）。
+   * **如果能装下**：从单副本开始。当并发流量上升时，通过\*\*数据并行（DP）\*\*增加副本数量，并在网关路由器中启用感知前缀缓存的调度策略。
+   * **如果装不下**：寻找能装下模型的**最小张量并行度（TP）**，并在该 TP 度数下压测 Decode 延迟。如果网络对等连接较慢、或者各网络层组执行时间均衡，可考虑引入流水线并行（PP）。
 
 ![原图待修复：指标与性能剖析矩阵](/translations/images/14c97c813ebe2c6b.jpg)
 
@@ -465,20 +473,20 @@ $$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$$
 *原图说明：图内多处文字不是可辨认的正常英文，暂时保留原图，未制作中文版。*
 
 2. **第二步：模型是否需要跨节点？**
-   - 将 TP 严格限制在节点内高速互连链路上；跨节点使用 PP。在加大负载前，必须实测各 Stage 的时间平衡性。
+   * 将 TP 严格限制在节点内高速互连链路上；跨节点使用 PP。在加大负载前，必须实测各 Stage 的时间平衡性。
 3. **第三步：长文本请求是否超标？**
-   - 分开评估：若超长 Prompt 的 TTFT 无法达标，评估 **PCP**；若长文本的 KV Cache 显存耗尽导致并发崩溃，评估 **DCP**。切勿在没有 Prompt 分段压测数据的情况下盲目开启。
+   * 分开评估：若超长 Prompt 的 TTFT 无法达标，评估 **PCP**；若长文本的 KV Cache 显存耗尽导致并发崩溃，评估 **DCP**。切勿在没有 Prompt 分段压测数据的情况下盲目开启。
 
 ![并行策略决策矩阵](/translations/images/f68821a7f836099f.jpg)
 
 *图 26 并行策略决策矩阵*
 
 4. **第四步：MoE 模型是否需要专家并行？**
-   - 只有在专家权重导致显存无法装下时才测试 **EP**，同时必须独立追踪 Token 分布倾斜度与 All-to-All 耗时。切勿将 EP 引入稠密模型，也切勿仅通过整体 GPU 利用率来推断 EP 的收益。
+   * 只有在专家权重导致显存无法装下时才测试 **EP**，同时必须独立追踪 Token 分布倾斜度与 All-to-All 耗时。切勿将 EP 引入稠密模型，也切勿仅通过整体 GPU 利用率来推断 EP 的收益。
 
 > **核心原则**：只有当性能测量明确指出了某种资源限制时，才开启针对该限制的并行模式。首先定位受限的硬件资源，然后选择通信开销与当前物理互连拓扑相匹配的切分方案。
 
----
+***
 
 ## 总结
 
@@ -536,8 +544,8 @@ $$\text{Total Workers} = \text{DP} \times \text{PP} \times \text{TP}$$
 
     因此，每张卡只需要本地数据：
 
-    | | 第一层及激活 | 第二层 |
-    |---|---|---|
+    |       | 第一层及激活             | 第二层          |
+    | ----- | ------------------ | ------------ |
     | GPU 0 | $H_0=\sigma(XA_0)$ | $P_0=H_0B_0$ |
     | GPU 1 | $H_1=\sigma(XA_1)$ | $P_1=H_1B_1$ |
 
