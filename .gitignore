@@ -25,3 +25,8 @@ pnpm-debug.log*
 
 # Previous hosting metadata stays local
 .openai/
+
+# Cloudflare local credentials and build cache
+.dev.vars
+.dev.vars.*
+.wrangler/

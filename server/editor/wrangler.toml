@@ -1,0 +1,13 @@
+name = "yuzheng-article-editor"
+main = "worker.mjs"
+account_id = "99ba0e63a304fe94e279bc1f1df3cda5"
+workers_dev = true
+preview_urls = false
+compatibility_date = "2026-10-01"
+
+[vars]
+SITE_ORIGIN = "https://yuzheng310.github.io"
+# Fill these public identifiers after registering the GitHub App.
+GITHUB_CLIENT_ID = "Iv23liFscbgiwLHCp3rH"
+OWNER_ID = "84582165"
+# GITHUB_CLIENT_SECRET and SESSION_SECRET must be Wrangler secrets, never vars.

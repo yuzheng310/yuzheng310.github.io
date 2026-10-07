@@ -20,9 +20,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build and upload static site
         uses: withastro/action@e84f40bd8d2caa9e768ec82ad30dd81f0b280853 # v6
+        env:
+          PUBLIC_AUTHOR_API_URL: ${{ vars.PUBLIC_AUTHOR_API_URL }}
         with:
           node-version: 22
           package-manager: pnpm@8.15.9
+
+      - name: Check author editing and access controls
+        run: npm run test:authoring
 
       - name: Check internal links and assets
         run: python3 scripts/check-site.py

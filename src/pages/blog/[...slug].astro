@@ -1,5 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import ArticleEditor from '../../components/ArticleEditor.astro';
 import Portfolio from '../../layouts/Portfolio.astro';
 import ArticleNavigation from '../../components/ArticleNavigation.astro';
 import ArticleMath from '../../components/ArticleMath.astro';
@@ -10,6 +13,8 @@ export async function getStaticPaths() {
 }
 const { item } = Astro.props;
 const { Content } = await item.render();
+const source = await readFile(`src/content/blog/${item.id}`, 'utf8');
+const revision = createHash('sha256').update(source).digest('base64url');
 const readingMinutes = Math.max(1, Math.ceil((item.body.match(/[\u3400-\u9fff]/g)?.length || 0) / 350 + (item.body.match(/[A-Za-z]+/g)?.length || 0) / 220));
 ---
 <Portfolio title={`${item.data.title} · yuzheng`} description={item.data.description} active="blog" article>
@@ -18,12 +23,14 @@ const readingMinutes = Math.max(1, Math.ceil((item.body.match(/[\u3400-\u9fff]/g
     <div class="article-main" data-pagefind-body>
     <a class="back" href="/blog/">← 全部笔记</a>
     <header class="article-header"><p class="eyebrow">{item.data.sourceURL ? '翻译与阅读笔记' : '技术笔记'}</p><h1 data-pagefind-meta="title">{item.data.title}</h1><p class="deck">{item.data.description}</p><p class="article-meta"><time datetime={item.data.date.toISOString()}>{item.data.date.toISOString().slice(0, 10)}</time><span> · 约 {readingMinutes} 分钟阅读</span>{item.data.repoURL && <span> · <a href={item.data.repoURL}>相关源码 ↗</a></span>}</p><NoteTags tags={item.data.tags} /></header>
+    <ArticleEditor slug={item.slug} revision={revision} intro={item.data.intro} />
     {item.data.sourceURL && <aside class="article-source" aria-label="原文与整理说明">
       <p><span>原作者</span>{item.data.sourceAuthor}</p>
       <p><span>来源</span><a href={item.data.sourceURL} rel="noreferrer">{item.slug === 'llm-inference-explained' ? 'Avi Chawla 的作者主页 ↗' : '阅读原文 ↗'}</a></p>
       <p><span>整理范围</span>{item.data.translationScope}</p>
       {item.slug === 'llm-inference-explained' && <p class="source-note">本地译稿仅保留作者主页，原文章直链待补。</p>}
     </aside>}
+    <aside class="author-intro" aria-label="作者导语" hidden={!item.data.intro}><h2>导语</h2><p>{item.data.intro}</p></aside>
     <div class="prose"><Content /></div>
     <div class="article-end" data-pagefind-ignore><a href="/blog/">← 返回笔记列表</a><a href="#main">回到顶部 ↑</a></div>
     </div>

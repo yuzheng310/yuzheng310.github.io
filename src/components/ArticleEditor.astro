@@ -1,0 +1,39 @@
+---
+import '../styles/editor.css';
+interface Props { slug: string; revision: string; intro?: string; }
+const { slug, revision, intro = '' } = Astro.props;
+const api = (import.meta.env.PUBLIC_AUTHOR_API_URL || '').replace(/\/$/, '');
+const enabled = Boolean(api) || import.meta.env.DEV;
+---
+{enabled && <div class="author-editor" data-slug={slug} data-revision={revision} data-api={api} data-dev={String(import.meta.env.DEV)} data-pagefind-ignore>
+  <button class="author-entry" type="button">作者编辑</button>
+  <div class="author-bar" hidden>
+    <span class="author-mode">编辑模式</span><span class="author-count">未修改</span>
+    <button type="button" data-action="intro">编辑导语</button>
+    <button type="button" data-action="undo" disabled>撤销上一步</button>
+    <button type="button" data-action="review" disabled>预览与发布</button>
+    <button type="button" data-action="login" hidden>重新登录</button>
+    <button type="button" data-action="exit">退出</button>
+  </div>
+  <div class="author-selection" role="toolbar" aria-label="选中文字操作" hidden>
+    <button type="button" data-kind="replace">修改文字</button>
+    <button type="button" data-kind="highlight">高亮</button>
+    <button type="button" data-kind="note">添加批注</button>
+  </div>
+  <p class="author-status" role="status" aria-live="polite" hidden></p>
+  <dialog class="author-dialog">
+    <form method="dialog">
+      <h2 class="author-dialog-title">修改文字</h2>
+      <p class="author-quote"></p>
+      <label class="author-field-label" for="author-input">内容</label>
+      <textarea id="author-input" rows="5" maxlength="10000"></textarea>
+      <div class="author-review"></div>
+      <p class="author-dialog-error" role="alert"></p>
+      <div class="author-dialog-actions"><button type="button" class="author-cancel">取消</button><button type="submit" class="author-apply">应用修改</button></div>
+    </form>
+  </dialog>
+  <script is:inline type="application/json" class="author-initial-intro" set:html={JSON.stringify(intro).replaceAll('<', '\\u003c')} />
+</div>}
+<script>
+  import '../editor/client';
+</script>
