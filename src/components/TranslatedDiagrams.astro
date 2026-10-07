@@ -1,0 +1,41 @@
+<script>
+  document.querySelectorAll<HTMLElement>('.translated-diagram').forEach(figure => {
+    const image = figure.querySelector<HTMLImageElement>('img')!;
+    const stage = figure.querySelector<HTMLAnchorElement>('.diagram-stage')!;
+    const controls = figure.querySelector<HTMLElement>('.diagram-switch')!;
+    const fallback = figure.querySelector<HTMLElement>('.diagram-original-link')!;
+    const feedback = figure.querySelector<HTMLElement>('.diagram-feedback')!;
+    const buttons = [...controls.querySelectorAll<HTMLButtonElement>('button')];
+    let request = 0;
+    controls.hidden = false;
+    fallback.hidden = true;
+    buttons.forEach(button => button.addEventListener('click', async () => {
+      const current = ++request;
+      if (button.getAttribute('aria-pressed') === 'true') {
+        feedback.textContent = '';
+        return;
+      }
+      const version = button.dataset.diagramVersion!;
+      const src = figure.dataset[version]!;
+      feedback.textContent = '正在加载…';
+      try {
+        const next = new Image();
+        next.src = src;
+        await next.decode();
+        if (current !== request) return;
+        image.src = src;
+        image.width = next.naturalWidth;
+        image.height = next.naturalHeight;
+        image.alt = `${figure.dataset.alt}（${version === 'zh' ? '中文版' : '英文原图'}）`;
+        stage.href = src;
+        stage.setAttribute('aria-label', `放大：${image.alt}`);
+        buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        feedback.textContent = '';
+      } catch {
+        if (current !== request) return;
+        feedback.textContent = '图片暂时未能加载，请重试或查看原图。';
+        fallback.hidden = false;
+      }
+    }));
+  });
+</script>
