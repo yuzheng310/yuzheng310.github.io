@@ -16,10 +16,10 @@ test('editing changes only the selected bytes, preserving every equation and cod
 });
 test('highlight, annotation and intro serialize safely; annotations survive subsequent edits', () => {
   const result = applyEdits(original, [{ ...change, kind: 'note', value: '这里有 <script> 和 $符号，需保留为文字。' }], '读前提示："测试"\n第二行');
-  assert.ok(result.includes('<mark class="author-highlight">' + quote + '</mark>[^author-1]'));
+  assert.ok(result.includes('<mark class="author-highlight" data-author-note="author-1">' + quote + '</mark>[^author-1]'));
   assert.ok(result.includes('&lt;script&gt;'));
   assert.ok(result.includes('intro: "读前提示：\\"测试\\"\\n第二行"'));
-  assert.ok(result.includes('\\$符号'));
+  assert.ok(result.includes('$符号'));
   const secondStart = result.indexOf('阅读时可以抓住三个问题');
   const second = applyEdits(result, [{ start: secondStart, end: secondStart + 2, quote: '阅读', kind: 'note', value: '第二条' }]);
   assert.ok(second.includes('[^author-2]'));
@@ -107,12 +107,12 @@ test('saved annotations render through Astro with public footnotes and unchanged
   const { default: rehypeKatex } = await import('rehype-katex');
   const processor = await createMarkdownProcessor({ remarkPlugins: [remarkMath], rehypePlugins: [rehypeKatex] });
   const source = '正文重点 $x^2$\n\n$$\ny = x + 1\n$$\n\n```js\nconst n = 1;\n```';
-  const updated = applyEdits(source, [{ start: 2, end: 4, quote: '重点', kind: 'note', value: '解释 <script> 和 $x$' }]);
+  const updated = applyEdits(source, [{ start: 2, end: 4, quote: '重点', kind: 'note', value: '解释 <script> 和 `$x$`' }]);
   const before = (await processor.render(source)).code;
   const after = (await processor.render(updated)).code;
-  assert.ok(after.includes('<mark class="author-highlight">重点</mark>'));
+  assert.ok(after.includes('<mark class="author-highlight" data-author-note="author-1">重点</mark>'));
   assert.ok(after.includes('data-footnotes'));
-  assert.match(after, /作者批注：解释 (?:&#x3C;|&lt;)script(?:>|&gt;) 和 \$x\$/);
+  assert.match(after, /解释 (?:&#x3C;|&lt;)script(?:>|&gt;) 和 <code>\$x\$<\/code>/);
   assert.ok(!after.includes('<script>'));
   assert.deepEqual([...after.matchAll(/<span class="katex[\s\S]*?<\/math>/g)].map(x => x[0]), [...before.matchAll(/<span class="katex[\s\S]*?<\/math>/g)].map(x => x[0]));
   assert.equal(after.match(/<pre[\s\S]*?<\/pre>/)?.[0], before.match(/<pre[\s\S]*?<\/pre>/)?.[0]);

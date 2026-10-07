@@ -1,0 +1,29 @@
+<script>
+  const cards = document.querySelectorAll<HTMLDetailsElement>('.author-note-card');
+  function reveal(card: HTMLDetailsElement) {
+    card.open = true;
+    document.dispatchEvent(new Event('article-font-change'));
+    card.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+  }
+  cards.forEach(card => card.addEventListener('toggle', () => {
+    const hint = card.querySelector('.author-note-hint');
+    if (hint) hint.textContent = card.open ? '收起批注' : '展开阅读';
+    if (card.open) document.dispatchEvent(new Event('article-font-change'));
+  }));
+  document.addEventListener('click', event => {
+    const trigger = (event.target as Element).closest<HTMLElement>('.author-note-ref, .author-highlight[data-author-note]');
+    if (!trigger || window.getSelection()?.toString().trim()) return;
+    if (trigger.tagName === 'MARK' && trigger.closest('a')) return;
+    const id = trigger.dataset.authorNote;
+    const card = id ? document.querySelector<HTMLDetailsElement>(`.author-note-card[data-author-note-card="${id}"]`) : document.getElementById(trigger.getAttribute('aria-controls') || '') as HTMLDetailsElement;
+    if (card) { event.preventDefault(); reveal(card); }
+  });
+  function fromHash() {
+    let id: string;
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+    const card = document.getElementById(id);
+    if (card?.matches('.author-note-card')) reveal(card as HTMLDetailsElement);
+  }
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+</script>

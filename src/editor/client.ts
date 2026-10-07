@@ -1,6 +1,6 @@
-import { applyEdits } from '../lib/authoring.mjs';
-type Edit = { start: number; end: number; quote: string; kind: 'replace' | 'highlight' | 'note'; value: string };
-type Target = { span: HTMLElement; start: number; end: number; quote: string };
+import { collectSelection, type SelectionTarget } from './selection';
+type Edit = { start: number; end: number; quote: string; selection?: string; ranges?: {start:number;end:number;quote:string}[]; kind: 'replace' | 'highlight' | 'note'; value: string };
+type Target = SelectionTarget;
 const root = document.querySelector<HTMLElement>('.author-editor');
 if (root) setup(root);
 function setup(root: HTMLElement) {
@@ -29,8 +29,10 @@ function setup(root: HTMLElement) {
   let edits: Edit[] = [];
   let intro = initialIntro;
   const history: { edits: Edit[]; intro: string }[] = [];
-  const originals = new Map<HTMLElement, string>();
+  const originals = new Map<HTMLElement, { html: string; text: string }>();
+  const dirtyBlocks = new Set<HTMLElement>();
   let hideStatus: number | undefined;
+  entry.disabled = false;
   if (local) entry.textContent = '体验页内编辑（本地）';
   const dirty = () => edits.length > 0 || intro !== initialIntro;
   function notify(message: string) {
@@ -53,7 +55,7 @@ function setup(root: HTMLElement) {
       query<HTMLButtonElement>('[data-action=login]').hidden = true;
       document.body.classList.add('author-editing'); bar.hidden = false; entry.hidden = true;
       root.querySelector('.author-mode')!.textContent = local ? '本地体验 · 不会发布' : '作者编辑';
-      notify('选中一段普通文字，即可修改、高亮或批注。公式、代码和标题保持原样。');
+      notify('选中一段普通文字，即可修改、高亮或批注。同一段可跨粗体、链接和完整公式选择。');
     } catch (e) { notify((e as Error).message); }
     finally { busy = false; entry.disabled = false; }
   }
@@ -78,25 +80,33 @@ function setup(root: HTMLElement) {
     const timeout = window.setTimeout(() => { cleanup(); notify('登录等待超时，请重试。'); }, 600000);
   });
   function render() {
-    for (const [span, text] of originals) {
+    for (const block of dirtyBlocks) block.dataset.authorDirty = 'false';
+    for (const [span, original] of originals) {
       const start = Number(span.dataset.authorStart);
-      const changes = edits.filter(edit => edit.start >= start && edit.end <= Number(span.dataset.authorEnd)).sort((a, b) => a.start - b.start);
+      const changes = edits.flatMap(edit => (edit.ranges || [edit]).map((piece, index, pieces) => ({ ...piece, kind: edit.kind, value: edit.kind === 'replace' && index > 0 ? '' : edit.value, note: edit.kind === 'note' && index === pieces.length - 1 })))
+        .filter(edit => edit.start >= start && edit.end <= Number(span.dataset.authorEnd)).sort((a,b) => a.start-b.start);
+      span.innerHTML = original.html; // Only restore this page's original, trusted markup.
+      if (!changes.length) continue;
+      span.closest<HTMLElement>('[data-author-block]')!.dataset.authorDirty = 'true';
+      const atomic = span.dataset.authorAtomic === 'true';
+      const originalNodes = [...span.childNodes];
       span.replaceChildren();
-      let offset = 0;
+      let offset=0;
       for (const edit of changes) {
-        span.append(document.createTextNode(text.slice(offset, edit.start - start)));
-        if (edit.kind === 'replace') span.append(document.createTextNode(edit.value.replace(/\r?\n/g, ' ')));
+        if (!atomic) span.append(document.createTextNode(original.text.slice(offset, edit.start-start)));
+        if (edit.kind === 'replace') span.append(document.createTextNode(edit.value.replace(/\r?\n/g,' ')));
         else {
-          const mark = document.createElement('mark'); mark.className = 'author-highlight'; mark.textContent = edit.quote; span.append(mark);
-          if (edit.kind === 'note') {
-            const note = document.createElement('button'); note.type = 'button'; note.className = 'author-note-preview'; note.textContent = '批注';
-            note.addEventListener('click', () => { show('read-note'); quote.textContent = edit.quote; input.value = edit.value; }); span.append(note);
+          const mark=document.createElement('mark');mark.className='author-highlight';
+          if (atomic) mark.append(...originalNodes); else mark.textContent=edit.quote;
+          span.append(mark);
+          if(edit.note) {
+            const note=document.createElement('button');note.type='button';note.className='author-note-preview';note.textContent='批注预览';
+            note.addEventListener('click',()=>{show('read-note');quote.textContent=edit.quote;input.value=edit.value;void previewNote();});span.append(note);
           }
         }
-        offset = edit.end - start;
+        offset=edit.end-start;
       }
-      span.append(document.createTextNode(text.slice(offset)));
-      span.dataset.authorDirty = String(changes.length > 0);
+      if(!atomic) span.append(document.createTextNode(original.text.slice(offset)));
     }
     introBox.hidden = !intro.trim(); introBox.querySelector('p')!.textContent = intro;
     const count = edits.length + Number(intro !== initialIntro);
@@ -107,39 +117,44 @@ function setup(root: HTMLElement) {
   }
   function record() { history.push({ edits: edits.map(edit => ({ ...edit })), intro }); }
   function show(next: typeof mode) {
-    mode = next; error.textContent = ''; review.replaceChildren(); quote.textContent = target?.quote || '';
+    mode = next; error.textContent = ''; review.replaceChildren(); quote.textContent = target?.selection || '';
     const names = { replace: '修改选中文字', highlight: '高亮', note: '添加公开批注', intro: '编辑文章导语', review: '预览改动', 'read-note': '作者批注', exit: '退出编辑' };
     title.textContent = names[next];
-    input.hidden = label.hidden = ['review', 'exit'].includes(next);
+    input.hidden = label.hidden = ['review', 'exit', 'read-note'].includes(next);
+    query('.author-note-help').hidden = next !== 'note';
+    query('.author-note-rendered').hidden = !['note','read-note'].includes(next);
     quote.hidden = ['intro', 'review', 'exit'].includes(next);
     label.textContent = next === 'note' ? '批注内容（发布后所有读者可见）' : next === 'intro' ? '导语（显示在正文之前）' : '内容';
     input.readOnly = next === 'read-note';
     input.maxLength = next === 'intro' ? 3000 : 10000;
-    input.value = next === 'intro' ? intro : next === 'replace' ? target?.quote || '' : '';
+    input.value = next === 'intro' ? intro : next === 'replace' ? target?.selection || '' : '';
     apply.textContent = next === 'review' ? (local ? '本地体验无法发布' : '确认发布') : next === 'read-note' ? '关闭' : next === 'exit' ? '放弃修改并退出' : '应用修改';
     apply.disabled = next === 'review' && local;
     if (next === 'exit') { const p = document.createElement('p'); p.textContent = '还有未发布的修改。退出会丢弃这些修改，你也可以取消并继续编辑。'; review.append(p); }
+    if (next === 'note') void previewNote();
     dialog.showModal(); if (!input.hidden && !input.readOnly) input.focus();
   }
+  let previewVersion = 0;
+  async function previewNote() {
+    const version=++previewVersion, value=input.value;
+    const container=query('.author-note-rendered');
+    try {
+      const {renderNote}=await import('./note-preview');
+      const html=value.trim()?await renderNote(value):'<p>批注预览会显示在这里。</p>';
+      if(version===previewVersion && ['note','read-note'].includes(mode)) {container.innerHTML=html;error.textContent='';}
+    } catch(e) { if(version===previewVersion) {container.textContent='无法预览';error.textContent=(e as Error).message;} }
+  }
+  let previewTimer:number|undefined;
+  input.addEventListener('input',()=>{if(mode==='note'){clearTimeout(previewTimer);previewTimer=window.setTimeout(()=>void previewNote(),180);}});
   query('.author-cancel').addEventListener('click', () => dialog.close());
   function saveSelection() {
     if (!editing || busy || dialog.open) return;
     const selected = window.getSelection();
     if (!selected || selected.isCollapsed || !selected.rangeCount) { selectionBar.hidden = true; return; }
     const range = selected.getRangeAt(0);
-    const startElement = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer as Element;
-    const endElement = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement : range.endContainer as Element;
-    const span = startElement?.closest<HTMLElement>('.prose [data-author-start]');
-    if (!span || span !== endElement?.closest('.prose [data-author-start]') || span.dataset.authorDirty === 'true') {
-      selectionBar.hidden = true;
-      if (startElement?.closest('.prose')) notify('请在同一段普通文字内选择，避开公式、代码、链接和格式边界。已有草稿的段落可先撤销再改。');
-      return;
-    }
-    const prefix = document.createRange(); prefix.selectNodeContents(span); prefix.setEnd(range.startContainer, range.startOffset);
-    const start = Number(span.dataset.authorStart) + prefix.toString().length;
-    const text = range.toString();
-    if (!text.trim() || source.slice(start, start + text.length) !== text) { selectionBar.hidden = true; return; }
-    target = { span, start, end: start + text.length, quote: text };
+    try { target=collectSelection(range,source); }
+    catch(e) {selectionBar.hidden=true;notify((e as Error).message);return;}
+    if(!target) {selectionBar.hidden=true;return;}
     const bounds = range.getBoundingClientRect();
     selectionBar.hidden = false;
     selectionBar.style.left = `${Math.max(8, Math.min(innerWidth - selectionBar.offsetWidth - 8, bounds.left))}px`;
@@ -152,15 +167,22 @@ function setup(root: HTMLElement) {
   selectionBar.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach(button => button.addEventListener('click', () => {
     if (!target) return;
     selectionBar.hidden = true;
-    if (button.dataset.kind === 'highlight') stage('highlight', '');
+    if (button.dataset.kind === 'highlight') void stage('highlight', '');
     else show(button.dataset.kind as 'replace' | 'note');
   }));
-  function stage(kind: Edit['kind'], value: string) {
-    if (!target) return;
-    record();
-    if (!originals.has(target.span)) originals.set(target.span, target.span.textContent || '');
-    edits.push({ start: target.start, end: target.end, quote: target.quote, kind, value });
-    render(); window.getSelection()?.removeAllRanges(); notify('修改已应用到当前预览，尚未公开发布。');
+  async function stage(kind: Edit['kind'], value: string) {
+    if(!target || busy) return false;
+    busy=true; apply.disabled=true;
+    const selected=target;
+    const edit:Edit={start:selected.start,end:selected.end,quote:selected.quote,selection:selected.selection,ranges:selected.pieces.map(({start,end,quote})=>({start,end,quote})),kind,value};
+    try {
+      const {applyEdits}=await import('../lib/authoring.mjs');
+      applyEdits(source,[...edits,edit]);
+      record(); dirtyBlocks.add(selected.block);
+      for(const {span} of selected.pieces) if(!originals.has(span)) originals.set(span,{html:span.innerHTML,text:span.textContent||''});
+      edits.push(edit);render();window.getSelection()?.removeAllRanges();notify('修改已应用到当前预览，尚未公开发布。');return true;
+    } catch(e) {error.textContent=(e as Error).message;notify((e as Error).message);return false;}
+    finally {busy=false; apply.disabled=false;}
   }
   bar.addEventListener('click', event => {
     const action = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
@@ -172,7 +194,7 @@ function setup(root: HTMLElement) {
     if (action === 'review') {
       show('review');
       const heading = document.createElement('p'); heading.textContent = local ? '这是本地体验，不能写入线上文章。' : '发布后，导语、高亮和批注都将公开。修改会记录到 GitHub，网站构建完成后生效。'; review.append(heading);
-      const changes = [...edits.map(edit => ({ kind: { replace: '修改文字', highlight: '高亮', note: '作者批注' }[edit.kind], before: edit.quote, after: edit.kind === 'highlight' ? '标为重点' : edit.value })), ...(intro !== initialIntro ? [{ kind: '导语', before: initialIntro, after: intro }] : [])];
+      const changes = [...edits.map(edit => ({ kind: { replace: '修改文字', highlight: '高亮', note: '作者批注' }[edit.kind], before: edit.selection || edit.quote, after: edit.kind === 'highlight' ? '标为重点' : edit.value })), ...(intro !== initialIntro ? [{ kind: '导语', before: initialIntro, after: intro }] : [])];
       for (const change of changes) {
         const article = document.createElement('article'); const strong = document.createElement('strong'); strong.textContent = change.kind;
         const old = document.createElement('p'); old.textContent = `原文：${change.before || '（空）'}`;
@@ -192,11 +214,12 @@ function setup(root: HTMLElement) {
     if (mode === 'intro') { record(); intro = input.value.trim(); render(); dialog.close(); return; }
     if (mode === 'replace' || mode === 'note') {
       if (mode === 'note' && !input.value.trim()) { error.textContent = '请填写批注内容。'; return; }
-      stage(mode, input.value); dialog.close(); return;
+      if(await stage(mode,input.value)) dialog.close(); return;
     }
     if (mode !== 'review' || local) return;
     busy = true; apply.disabled = true; error.textContent = '';
     try {
+      const {applyEdits}=await import('../lib/authoring.mjs');
       applyEdits(source, edits, intro !== initialIntro ? intro : undefined);
       const result = await request(`/publish?slug=${slug}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sha, edits, ...(intro !== initialIntro ? { intro } : {}) }) });
       // The commit is saved, but the build may still fail. Say exactly what is known.

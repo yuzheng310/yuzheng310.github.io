@@ -34,3 +34,28 @@
 body.author-editing .prose [data-author-start]:hover { outline: 1px dashed var(--line); outline-offset: 3px; }
 @media(max-width: 600px) { .author-bar { inset: auto 10px 10px; max-width: calc(100% - 20px); gap: 6px; padding: 10px; } .author-bar button { min-height: 40px; padding: 6px 8px; } .author-status { bottom: 125px; } }
 @media print { .author-editor { display: none !important; } }
+/* A paragraph is one editing surface regardless of inline formatting. */
+body.author-editing .prose [data-author-start]:hover { outline: none; }
+body.author-editing .prose [data-author-block]:hover { outline: 1px dashed var(--line); outline-offset: 5px; }
+.author-note-help { color: var(--muted); font-size: 12px; line-height: 1.8; margin: 10px 0; }
+.author-note-rendered.prose { max-height: 340px; overflow: auto; padding: 18px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; margin-top: 12px; }
+.author-dialog:has(.author-note-rendered:not([hidden])) { width: min(780px, calc(100vw - 36px)); }
+.prose .author-note-card { margin: 22px 0 34px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--wash); scroll-margin-top: 100px; }
+.prose .author-note-card summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; list-style: none; cursor: pointer; padding: 15px 20px; font: 13px/1.6 var(--sans); color: var(--muted); }
+.prose .author-note-card summary::-webkit-details-marker { display: none; }
+.author-note-label { color: var(--accent); font-weight: 600; letter-spacing: .03em; }
+.author-note-hint { font-size: 12px; white-space: nowrap; }
+.author-note-hint::after { content: ' ＋'; }
+.author-note-card[open] .author-note-hint::after { content: ' −'; }
+.prose .author-note-body { padding: 0 24px 22px; font-size: .93em; line-height: 1.95; overflow-wrap: anywhere; }
+.prose .author-note-body > :first-child { margin-top: 8px; }
+.prose .author-note-body > :last-child { margin-bottom: 0; }
+.prose .author-note-body p { margin: 1em 0; }
+.prose .author-note-body h3, .prose .author-note-body h4 { font-size: 1.08em; margin: 1.6em 0 .7em; padding: 0; border: 0; }
+.prose .author-note-body .katex-display { margin: 1.25em 0; }
+.prose .author-note-body table { font-size: .92em; margin-block: 1.25em; }
+.prose .author-note-ref { display: inline; padding: 2px 6px; margin-left: 4px; border-radius: 4px; border-bottom: none; background: var(--wash); color: var(--accent); font: 11px/1.8 var(--sans); text-decoration: none; white-space: nowrap; }
+.author-highlight[data-author-note] { cursor: pointer; text-decoration: underline; text-decoration-color: #aa963f66; text-underline-offset: .22em; }
+.author-note-card summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media(max-width:600px) { .prose .author-note-card summary { padding: 12px 14px; } .prose .author-note-body { padding: 0 14px 18px; } }
+@media print { .author-note-card::details-content { display: block; content-visibility: visible; } }

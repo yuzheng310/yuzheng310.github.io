@@ -6,7 +6,7 @@ const api = (import.meta.env.PUBLIC_AUTHOR_API_URL || '').replace(/\/$/, '');
 const enabled = Boolean(api) || import.meta.env.DEV;
 ---
 {enabled && <div class="author-editor" data-slug={slug} data-revision={revision} data-api={api} data-dev={String(import.meta.env.DEV)} data-pagefind-ignore>
-  <button class="author-entry" type="button">作者编辑</button>
+  <button class="author-entry" type="button" disabled>作者编辑</button>
   <div class="author-bar" hidden>
     <span class="author-mode">编辑模式</span><span class="author-count">未修改</span>
     <button type="button" data-action="intro">编辑导语</button>
@@ -27,6 +27,8 @@ const enabled = Boolean(api) || import.meta.env.DEV;
       <p class="author-quote"></p>
       <label class="author-field-label" for="author-input">内容</label>
       <textarea id="author-input" rows="5" maxlength="10000"></textarea>
+      <p class="author-note-help" hidden>支持段落、粗体、列表、表格和公式，可直接粘贴 Markdown。下方为发布效果预览。</p>
+      <div class="author-note-rendered prose" hidden aria-label="批注预览"></div>
       <div class="author-review"></div>
       <p class="author-dialog-error" role="alert"></p>
       <div class="author-dialog-actions"><button type="button" class="author-cancel">取消</button><button type="submit" class="author-apply">应用修改</button></div>

@@ -1,3 +1,4 @@
+import { normalizeNote, patchParagraph } from './author-markdown.mjs';
 // Shared by the browser and publishing service. All edits address the original
 // Markdown, so unrelated formatting, code and equations remain byte-for-byte intact.
 export function escapeText(text) {
@@ -12,6 +13,15 @@ export function validateEdits(source, edits) {
     if (typeof edit.quote !== 'string' || source.slice(edit.start, edit.end) !== edit.quote) throw new Error('原文已发生变化，请重新载入文章。');
     if (!['replace', 'highlight', 'note'].includes(edit.kind)) throw new Error('不支持的修改类型。');
     if (typeof edit.value !== 'string' || edit.value.length > 10000 || (edit.kind === 'note' && !edit.value.trim())) throw new Error('修改内容无效。');
+    if (edit.ranges !== undefined) {
+      if (!Array.isArray(edit.ranges) || !edit.ranges.length || edit.ranges.length > 200) throw new Error('无效的连续选区。');
+      let cursor = edit.start;
+      for (const range of edit.ranges) {
+        if (!Number.isInteger(range.start) || !Number.isInteger(range.end) || range.start < cursor || range.end <= range.start || range.end > edit.end || source.slice(range.start, range.end) !== range.quote) throw new Error('选区已失效，请重新选择。');
+        cursor = range.end;
+      }
+      if (edit.ranges[0].start !== edit.start || cursor !== edit.end) throw new Error('选区边界无效。');
+    }
     end = edit.end;
   }
 }
@@ -22,17 +32,26 @@ export function applyEdits(source, edits, intro) {
   const existing = new Set([...source.matchAll(/\[\^(author-\d+)\]/g)].map(match => match[1]));
   let counter = 1;
   for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
-    let replacement;
-    if (edit.kind === 'replace') replacement = escapeText(edit.value);
-    else if (edit.kind === 'highlight') replacement = `<mark class="author-highlight">${edit.quote}</mark>`;
-    else {
+    let id;
+    if (edit.kind === 'note') {
       while (existing.has(`author-${counter}`)) counter++;
-      const id = `author-${counter++}`;
-      existing.add(id);
-      replacement = `<mark class="author-highlight">${edit.quote}</mark>[^${id}]`;
-      notes.push(`[^${id}]: 作者批注：${escapeText(edit.value.trim())}`);
+      id = `author-${counter++}`; existing.add(id);
+      const content = normalizeNote(edit.value);
+      notes.push(`[^${id}]: 作者批注：\n\n${content.split('\n').map(line => '    ' + line).join('\n')}`);
     }
-    result = result.slice(0, edit.start) + replacement + result.slice(edit.end);
+    const ranges = edit.ranges || [edit];
+    const replacements = ranges.map((range, index) => {
+      if (edit.kind === 'replace') return index === 0 ? escapeText(edit.value) : '';
+      const ref = id ? ` data-author-note="${id}"` : '';
+      return `<mark class="author-highlight"${ref}>${range.quote}</mark>` + (id && index === ranges.length-1 ? `[^${id}]` : '');
+    });
+    if (edit.ranges) {
+      // Changes are evaluated against the original source; compose multiple
+      // selections in a paragraph through the same source-level replacement pass.
+      const patch = patchParagraph(source, edit, replacements);
+      if (edits.some(other => other !== edit && other.start < patch.end && other.end > patch.start)) throw new Error('同一段落请合并修改，或先发布当前改动。');
+      result = result.slice(0,patch.start) + patch.value + result.slice(patch.end);
+    } else result = result.slice(0,edit.start) + replacements[0] + result.slice(edit.end);
   }
   if (notes.length) result = result.trimEnd() + '\n\n' + notes.reverse().join('\n\n') + '\n';
   if (intro !== undefined) {

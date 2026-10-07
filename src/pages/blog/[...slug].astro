@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import ArticleNotes from '../../components/ArticleNotes.astro';
 import ArticleEditor from '../../components/ArticleEditor.astro';
 import Portfolio from '../../layouts/Portfolio.astro';
 import ArticleNavigation from '../../components/ArticleNavigation.astro';
@@ -35,5 +36,6 @@ const readingMinutes = Math.max(1, Math.ceil((item.body.match(/[\u3400-\u9fff]/g
     <div class="article-end" data-pagefind-ignore><a href="/blog/">← 返回笔记列表</a><a href="#main">回到顶部 ↑</a></div>
     </div>
     <ArticleMath />
+    <ArticleNotes />
   </article>
 </Portfolio>

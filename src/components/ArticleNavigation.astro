@@ -53,7 +53,7 @@ import ReadingPreferences from './ReadingPreferences.astro';
   const details = navigation?.querySelector<HTMLDetailsElement>('.toc-details');
   const list = navigation?.querySelector('ol');
   const headings = [...document.querySelectorAll<HTMLElement>('.prose h2, .prose h3')]
-    .filter(heading => heading.textContent?.trim() !== '目录');
+    .filter(heading => heading.textContent?.trim() !== '目录' && !heading.closest('.author-note-card, .author-dialog'));
 
   if (navigation && details && list && headings.length > 1) {
     const desktop = window.matchMedia('(min-width: 1000px)');
