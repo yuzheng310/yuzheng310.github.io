@@ -34,7 +34,7 @@
 .inline-editor-host .milkdown dl[data-type=footnote_definition] dt { color: var(--accent); font: 13px var(--sans); }
 .inline-editor-host .milkdown dl[data-type=footnote_definition] dt::before { content: '批注 · '; }
 .inline-editor-host .milkdown sup[data-type=footnote_reference] { color: var(--accent); font: 11px var(--sans); cursor: pointer; }
-.inline-article-image { display: inline-block; position: relative; width: 100%; margin-block: 1rem; }
+.inline-article-image { display: block; position: relative; width: 100%; max-width: var(--article-image-width); margin: 1rem auto; }
 .inline-article-image img { width: 100%; height: auto; border-radius: 6px; }
 .inline-image-switch { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 0; }
 .inline-image-switch button { padding: 5px 10px !important; border: 1px solid var(--line) !important; border-radius: 4px; font: 12px var(--sans); color: var(--muted); cursor: pointer; }
