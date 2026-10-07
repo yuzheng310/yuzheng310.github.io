@@ -1,21 +1,24 @@
 <script>
-  const cards = document.querySelectorAll<HTMLDetailsElement>('.author-note-card');
   function reveal(card: HTMLDetailsElement) {
     card.open = true;
     document.dispatchEvent(new Event('article-font-change'));
     card.scrollIntoView({ block: 'nearest', behavior: 'auto' });
   }
-  cards.forEach(card => card.addEventListener('toggle', () => {
+  document.addEventListener('toggle', event => {
+    const card = event.target;
+    if (!(card instanceof HTMLDetailsElement) || !card.matches('.author-note-card')) return;
     const hint = card.querySelector('.author-note-hint');
     if (hint) hint.textContent = card.open ? '收起批注' : '展开阅读';
     if (card.open) document.dispatchEvent(new Event('article-font-change'));
-  }));
+  }, true);
   document.addEventListener('click', event => {
     const trigger = (event.target as Element).closest<HTMLElement>('.author-note-ref, .author-highlight[data-author-note]');
+    if (trigger?.closest('.inline-editor-host')) return;
     if (!trigger || window.getSelection()?.toString().trim()) return;
     if (trigger.tagName === 'MARK' && trigger.closest('a')) return;
     const id = trigger.dataset.authorNote;
-    const card = id ? document.querySelector<HTMLDetailsElement>(`.author-note-card[data-author-note-card="${id}"]`) : document.getElementById(trigger.getAttribute('aria-controls') || '') as HTMLDetailsElement;
+    const scope = trigger.closest('.article-draft-preview') || document;
+    const card = id ? scope.querySelector<HTMLDetailsElement>(`.author-note-card[data-author-note-card="${id}"]`) : scope.querySelector<HTMLDetailsElement>(`[id="${CSS.escape(trigger.getAttribute('aria-controls') || '')}"]`);
     if (card) { event.preventDefault(); reveal(card); }
   });
   function fromHash() {

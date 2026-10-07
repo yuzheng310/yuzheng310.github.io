@@ -142,3 +142,24 @@ test('successful OAuth callback seals the owner token and rejects a different us
   owner = false;
   assert.ok(!(await (await callback()).text()).includes('"session":'));
 });
+
+test('full Markdown publishing keeps metadata and rejects stale or unsafe writes', async t => {
+  const savedFetch = globalThis.fetch; t.after(() => { globalThis.fetch = savedFetch; });
+  const session = await seal({ type: 'session', token: 'github-test', exp: Date.now() + 100000 }, env.SESSION_SECRET);
+  const headers = { Origin: env.SITE_ORIGIN, Authorization: `Bearer ${session}`, 'Content-Type': 'application/json' };
+  const input = '---\ntitle: 固定标题\n---\n旧正文\n';
+  let written;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).endsWith('/user')) return Response.json({ id: 1234 });
+    if (init.method === 'PUT') { written = JSON.parse(init.body); return Response.json({ commit: { sha: 'next', html_url: 'https://github.com/example/commit/next' } }); }
+    return Response.json({ type: 'file', sha: 'current', content: Buffer.from(input).toString('base64') });
+  };
+  const publish = body => handle(new Request(service + '/publish?slug=session-kv', { method: 'POST', headers, body: JSON.stringify({ format: 'markdown-v1', sha: 'current', ...body }) }), env);
+  assert.equal((await publish({ markdown: '新正文', sha: 'stale' })).status, 409);
+  assert.equal((await publish({ markdown: '<script>alert(1)</script>' })).status, 400);
+  assert.equal((await publish({ markdown: '正文', edits: [] })).status, 400);
+  assert.equal(written, undefined);
+  assert.equal((await publish({ markdown: '新正文', intro: '阅读导语' })).status, 200);
+  assert.equal(written.sha, 'current');
+  assert.equal(Buffer.from(written.content, 'base64').toString(), '---\ntitle: 固定标题\nintro: "阅读导语"\n---\n\n新正文\n');
+});

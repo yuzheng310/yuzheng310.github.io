@@ -57,6 +57,12 @@ import ReadingPreferences from './ReadingPreferences.astro';
 
   if (navigation && details && list && headings.length > 1) {
     const desktop = window.matchMedia('(min-width: 1000px)');
+    const currentHeading = (heading: HTMLElement, index: number) => {
+      if (heading.getClientRects().length) return heading;
+      const candidates = [...document.querySelectorAll<HTMLElement>('.inline-editor-host .prose :is(h2,h3), .article-draft-preview :is(h2,h3)')]
+        .filter(item => item.getClientRects().length && !item.closest('.author-note-card, dl'));
+      return candidates.find(item => item.textContent === heading.textContent) || candidates[index];
+    };
     let navigating = false;
     let navigationTarget: HTMLElement | undefined;
     let settleTimer: number | undefined;
@@ -79,7 +85,12 @@ import ReadingPreferences from './ReadingPreferences.astro';
         // Keep the clicked entry stable while native smooth scrolling crosses
         // intermediate chapters. Resume scroll tracking when the page settles.
         navigating = true;
-        navigationTarget = heading;
+        navigationTarget = currentHeading(heading, index);
+        if (!navigationTarget) { event.preventDefault(); navigating = false; return; }
+        if (navigationTarget !== heading) {
+          event.preventDefault();
+          navigationTarget.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
         setActive(index, false);
         if (!desktop.matches) details.open = false;
         scheduleSettle();
@@ -127,7 +138,8 @@ import ReadingPreferences from './ReadingPreferences.astro';
       const offset = 120;
       let index = 0;
       headings.forEach((heading, candidate) => {
-        if (heading.getBoundingClientRect().top <= offset) index = candidate;
+        const current = currentHeading(heading, candidate);
+        if (current && current.getBoundingClientRect().top <= offset) index = candidate;
       });
       setActive(index);
     };

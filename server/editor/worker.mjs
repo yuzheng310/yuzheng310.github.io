@@ -1,4 +1,5 @@
 import { applyEdits } from '../../src/lib/authoring.mjs';
+import { applyDocument } from '../../src/lib/author-document.mjs';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -102,11 +103,16 @@ export async function handle(request, env) {
     if (url.pathname === '/article') return json({ source, sha: file.sha, revision: await digest(source) }, 200, cors);
     if (!request.headers.get('Content-Type')?.startsWith('application/json')) throw new HttpError(415, '请使用 JSON 请求。');
     const raw = await request.text();
-    if (raw.length > 250000) throw new HttpError(413, '修改内容过大。');
+    if (raw.length > 1200000) throw new HttpError(413, '修改内容过大。');
     const body = JSON.parse(raw);
     if (typeof body.sha !== 'string' || body.sha !== file.sha) throw new HttpError(409, '文章已被修改，请保留草稿并重新载入。');
     let updated;
-    try { updated = applyEdits(source, body.edits, body.intro); }
+    try {
+      if (body.format === 'markdown-v1') {
+        if (body.edits !== undefined) throw new Error('不能混用整篇保存和选区修改。');
+        updated = applyDocument(source, body.markdown, body.intro);
+      } else updated = applyEdits(source, body.edits, body.intro);
+    }
     catch (error) { throw new HttpError(400, error.message); }
     if (updated === source) throw new HttpError(400, '没有需要发布的修改。');
     // UTF-8 base64 without spreading large article buffers into function arguments.

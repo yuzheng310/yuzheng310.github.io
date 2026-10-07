@@ -46,7 +46,8 @@
     };
     const applySizes = (preservePosition = false) => {
       // Keep the paragraph being read in place when earlier content reflows.
-      const anchor = preservePosition ? Array.from(prose.querySelectorAll<HTMLElement>('h2, h3, p, pre, table'))
+      const visibleProse = [...document.querySelectorAll<HTMLElement>('.article-main .prose')].find(element => element.getClientRects().length) || prose;
+      const anchor = preservePosition ? Array.from(visibleProse.querySelectorAll<HTMLElement>('h2, h3, p, pre, table'))
         .find(element => { const rect = element.getBoundingClientRect(); return rect.bottom > 120 && rect.top < innerHeight; }) : undefined;
       const before = anchor?.getBoundingClientRect().top;
       for (const kind of ['text', 'code'] as const) {

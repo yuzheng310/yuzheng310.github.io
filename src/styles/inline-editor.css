@@ -1,0 +1,47 @@
+.inline-editor-host { margin-bottom: 6rem; }
+.inline-editor-host[hidden], .article-draft-preview[hidden], .article-published-body[hidden] { display: none !important; }
+.inline-editor-host .milkdown {
+  --crepe-color-background: var(--paper); --crepe-color-on-background: var(--text);
+  --crepe-color-surface: var(--paper); --crepe-color-surface-low: var(--wash);
+  --crepe-color-on-surface: var(--text); --crepe-color-on-surface-variant: var(--muted);
+  --crepe-color-outline: var(--muted); --crepe-color-primary: var(--accent);
+  --crepe-color-secondary: var(--wash); --crepe-color-on-secondary: var(--text);
+  --crepe-color-inverse: var(--text); --crepe-color-on-inverse: var(--paper);
+  --crepe-color-hover: var(--wash); --crepe-color-selected: #91b7a944;
+  --crepe-color-inline-code: var(--text); --crepe-font-default: var(--serif);
+  --crepe-font-title: var(--sans); --crepe-font-code: ui-monospace, monospace;
+  --crepe-shadow-1: 0 3px 16px #0002; --crepe-shadow-2: 0 6px 24px #0002;
+}
+.inline-editor-host .milkdown .ProseMirror { padding: 0; min-height: 20rem; outline: none; }
+.inline-editor-host .milkdown .ProseMirror.prose p { margin: 1.2em 0; line-height: inherit; }
+.inline-editor-host .milkdown .ProseMirror.prose h2 { margin: 2.4em 0 1em; }
+.inline-editor-host .milkdown .ProseMirror.prose h3 { margin: 1.8em 0 .8em; }
+.inline-editor-host .milkdown .ProseMirror.prose ul, .inline-editor-host .milkdown .ProseMirror.prose ol { padding-left: 1.65em; margin: 1.2em 0; }
+.inline-editor-host .milkdown .ProseMirror.prose ul { list-style: disc; }
+.inline-editor-host .milkdown .ProseMirror.prose ol { list-style: decimal; }
+.inline-editor-host .milkdown .ProseMirror.prose li { margin: .5em 0; }
+.inline-editor-host .milkdown .ProseMirror.prose li p { margin: .5em 0; }
+.inline-editor-host .milkdown .milkdown-toolbar { z-index: 75; border: 1px solid var(--line); max-width: calc(100vw - 24px); flex-wrap: wrap; font-family: var(--sans); }
+.inline-editor-host .milkdown .toolbar-item:has(.author-tool-text) { width: auto; min-width: 42px; }
+.author-tool-text { font-size: 13px; white-space: nowrap; }
+.inline-editor-host .milkdown button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inline-editor-host .milkdown .milkdown-code-block { background: var(--wash); margin: 1.5em 0; border: 1px solid var(--line); border-radius: 6px; font-family: var(--sans); }
+.inline-editor-host .milkdown .cm-editor { background: transparent; font-size: var(--article-code-size, 14px); }
+.inline-editor-host .milkdown .cm-scroller { font-family: var(--crepe-font-code); line-height: 1.65; }
+.inline-editor-host .milkdown .milkdown-latex-inline { display: inline; }
+.inline-editor-host .milkdown .katex-display { text-align: center; }
+.inline-editor-host .milkdown dl[data-type=footnote_definition] { border: 1px solid var(--line); border-left: 3px solid var(--accent); margin: 1.5em 0; padding: 16px 20px; background: var(--wash); }
+.inline-editor-host .milkdown dl[data-type=footnote_definition] dt { color: var(--accent); font: 13px var(--sans); }
+.inline-editor-host .milkdown dl[data-type=footnote_definition] dt::before { content: '批注 · '; }
+.inline-editor-host .milkdown sup[data-type=footnote_reference] { color: var(--accent); font: 11px var(--sans); cursor: pointer; }
+.inline-article-image { display: inline-block; position: relative; width: 100%; margin-block: 1rem; }
+.inline-article-image img { width: 100%; height: auto; border-radius: 6px; }
+.inline-image-switch { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 0; }
+.inline-image-switch button { padding: 5px 10px !important; border: 1px solid var(--line) !important; border-radius: 4px; font: 12px var(--sans); color: var(--muted); cursor: pointer; }
+.inline-image-switch button[aria-pressed=true] { background: var(--wash); color: var(--accent); }
+.author-notes-list article { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.author-notes-list article p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; max-height: 100px; overflow: hidden; }
+.author-notes-list button { margin-right: 8px; }
+.author-preview-label { color: var(--accent); border-bottom: 1px solid var(--line); padding-bottom: 12px; font: 13px var(--sans); }
+body.author-editing .article-toc { opacity: .65; }
+@media(max-width:600px) { .inline-editor-host .milkdown .toolbar-item { margin: 3px; } .author-bar { font-size: 12px; } }

@@ -10,15 +10,14 @@ const enabled = Boolean(api) || import.meta.env.DEV;
   <div class="author-bar" hidden>
     <span class="author-mode">编辑模式</span><span class="author-count">未修改</span>
     <button type="button" data-action="intro">编辑导语</button>
-    <button type="button" data-action="undo" disabled>撤销上一步</button>
-    <button type="button" data-action="review" disabled>预览与发布</button>
+    <button type="button" data-action="notes">管理批注</button>
+    <button type="button" data-action="undo" disabled>撤销正文</button>
+    <button type="button" data-action="redo">重做</button>
+    <button type="button" data-action="preview">阅读预览</button>
+    <button type="button" data-action="export">下载草稿</button>
+    <button type="button" data-action="review" disabled>发布修改</button>
     <button type="button" data-action="login" hidden>重新登录</button>
     <button type="button" data-action="exit">退出</button>
-  </div>
-  <div class="author-selection" role="toolbar" aria-label="选中文字操作" hidden>
-    <button type="button" data-kind="replace">修改文字</button>
-    <button type="button" data-kind="highlight">高亮</button>
-    <button type="button" data-kind="note">添加批注</button>
   </div>
   <p class="author-status" role="status" aria-live="polite" hidden></p>
   <dialog class="author-dialog">
@@ -37,5 +36,28 @@ const enabled = Boolean(api) || import.meta.env.DEV;
   <script is:inline type="application/json" class="author-initial-intro" set:html={JSON.stringify(intro).replaceAll('<', '\\u003c')} />
 </div>}
 <script>
-  import '../editor/client';
+  const root = document.querySelector<HTMLElement>('.author-editor');
+  const entry = root?.querySelector<HTMLButtonElement>('.author-entry');
+  if (root && entry) {
+    entry.disabled = false;
+    if (import.meta.env.DEV && !root.dataset.api) entry.textContent = '体验原位编辑（本地）';
+    const initialize = async () => {
+      entry.disabled = true;
+      // Reserve the login window while the original click still has browser
+      // activation; downloading the editor must not cause a blocked popup.
+      let popup: Window | null = null;
+      if (root.dataset.api?.startsWith('https://')) popup = window.open('about:blank', 'yuzheng-author-login', 'popup,width=540,height=700');
+      try {
+        const { setup } = await import('../editor/inline-client');
+        entry.removeEventListener('click', initialize);
+        setup(root, popup); entry.click();
+      } catch {
+        popup?.close();
+        entry.disabled = false;
+        const status = root.querySelector<HTMLElement>('.author-status')!;
+        status.hidden = false; status.textContent = '编辑器加载失败，请检查网络后重试。';
+      }
+    };
+    entry.addEventListener('click', initialize);
+  }
 </script>

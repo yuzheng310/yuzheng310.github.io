@@ -4,8 +4,9 @@
     // KaTeX can wrap between relation/operator groups. Fit only equations whose
     // indivisible group (for example a matrix) is still wider than the column.
     const fitEquations = () => {
-      const normalSize = parseFloat(getComputedStyle(prose).fontSize) * 1.04;
-      prose.querySelectorAll<HTMLElement>('.katex-display > .katex').forEach(math => {
+      document.querySelectorAll<HTMLElement>('.prose .katex-display > .katex').forEach(math => {
+        if (!math.getClientRects().length) return;
+        const normalSize = parseFloat(getComputedStyle(math.closest('.prose')!).fontSize) * 1.04;
         math.style.fontSize = `${normalSize}px`;
         const html = math.querySelector<HTMLElement>('.katex-html');
         if (!html) return;
@@ -24,5 +25,6 @@
     observer.observe(prose);
     document.fonts.ready.then(fitEquations);
     document.addEventListener('article-font-change', fitEquations);
+    window.addEventListener('resize', fitEquations);
   }
 </script>

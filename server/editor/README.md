@@ -1,6 +1,6 @@
 # 文章页内编辑
 
-配置记录（2026-10-07）：GitHub App 已创建并仅安装到本站仓库；Worker 已部署到 `https://yuzheng-article-editor.2565554517.workers.dev`，登录与会话密钥已保存在 Cloudflare Secrets。应用和服务的非敏感标识见 `wrangler.toml`。未设置 `PUBLIC_AUTHOR_API_URL` 时，正式网站不显示编辑入口。本实现是轻量页内编辑层，使用 GitHub App 登录和 GitHub 历史，不是 TinaCMS 集成。
+配置记录（2026-10-07）：GitHub App 已创建并仅安装到本站仓库；Worker 已部署到 `https://yuzheng-article-editor.2565554517.workers.dev`，登录与会话密钥已保存在 Cloudflare Secrets。应用和服务的非敏感标识见 `wrangler.toml`。未设置 `PUBLIC_AUTHOR_API_URL` 时，正式网站不显示编辑入口。编辑内核采用 Milkdown / Crepe，结合本站排版、公开批注及现有 GitHub 发布服务。
 
 ## 上线验收记录
 
@@ -10,9 +10,11 @@
 
 ## 使用方式
 
-文章标题下点击「作者编辑」，用网站作者的 GitHub 账号登录。在同一段落内选择内容（可跨粗体、链接和完整行内公式），修改、高亮或添加公开批注；底部工具栏可编辑导语、撤销和预览后发布。导语显示在正文前；批注支持 Markdown 段落、列表、表格和公式，保存为公开内容，并在原文附近显示可展开卡片。原有公式、代码、图片和目录继续使用现有渲染器。
+文章标题下点击「作者编辑」，使用作者的 GitHub 账号登录，随后直接在正文输入。可以跨段落、粗体、链接和多个列表项选择文字，通过浮动工具栏高亮或添加公开批注；底部工具栏提供导语、批注管理、正文撤销/重做、阅读预览、草稿下载和发布。批注支持 Markdown 和公式，可以修改、删除，并在相关原文附近显示可展开卡片。
 
-本地 `npm run dev` 不配置服务即可体验；本地模式不能发布。草稿只在当前页面内存中，离开页面前有提醒，请勿把浏览器当作长期草稿存储。支持同一段落内跨格式连续选区，行内公式和行内代码需完整选中；不支持跨段落或独立代码块。一个段落已有草稿时需先撤销或发布再改。批注输入时可查看排版预览。公开批注的后续改写、删除高亮和复杂结构编辑仍需改仓库源文件。
+公式、代码、图片保留为文档节点；译图在编辑和预览时也可切换中文/原图。正文未修改时保存原始 Markdown；修改后由 Milkdown 重新序列化，列表符号、空行等格式可能规范化。导入时会对原始文档与序列化结果做语义比对，无法无损支持的文章会拒绝进入编辑，而不是静默丢内容。少量旧文章中的原始 HTML 标题/锚点以受保护节点保留，不能像普通 Markdown 标题那样直接改字。
+
+本地 `npm run dev` 不配置服务即可体验；本地模式不能发布。草稿保存在当前页面内存，离开前有提醒，也可下载 Markdown；尚无跨设备草稿同步或图片上传。阅读预览的代码保留文本格式，正式发布仍使用网站的语法高亮。编辑器仅在点击入口后加载，普通读者无需下载。
 
 ## 一次性接入
 
@@ -31,7 +33,7 @@
 
 - Worker 校验 GitHub 返回的数字用户 ID，每次文章读写都再次核验作者身份；前端隐藏按钮不是权限边界。
 - OAuth 使用 state、PKCE S256 和 HttpOnly/Secure 的流程 Cookie。会话经过 AES-GCM 加密，最长一小时；浏览器仅在内存保存不透明会话，不持久化 GitHub token。过期后可通过工具栏重新登录，当前草稿保留。
-- 写入目标固定为本站仓库 main 分支的 `src/content/blog/<slug>.md`。客户端只能提交带原文的范围操作；服务检查范围、原文和 GitHub 文件 SHA，有冲突就拒绝覆盖。
+- 写入目标固定为本站仓库 main 分支的 `src/content/blog/<slug>.md`。新版客户端提交 `format: "markdown-v1"`、`sha`、Markdown 正文与可选导语。服务端保留原始 frontmatter，只开放导语字段；验证文档大小、新增 HTML、链接协议与批注引用，并检查 GitHub 文件 SHA，有冲突就拒绝覆盖。旧版范围操作 API 暂时保留，支持前后端错峰部署。
 - 保存产生 GitHub 提交，然后由现有 Actions 部署。返回“已提交”不等于“已上线”；前端提供发布状态链接。构建失败时文章线上仍为旧版，应查看 Actions 并修复或回退提交。
 - 服务不负责 GitHub App 安装授权。卸载 App、撤销其用户授权或轮换 `SESSION_SECRET` 可以收回访问/使已有编辑会话失效。退出页面仅清除本页内存会话。
 - 需要关闭功能时清空 Actions 的 `PUBLIC_AUTHOR_API_URL` 并重新部署网站；停止 Worker 可立即阻止新的在线写入。
@@ -46,6 +48,6 @@ npm run build
 python3 scripts/check-site.py
 ```
 
-测试覆盖身份拒绝、OAuth 状态与 PKCE、会话篡改/过期、版本冲突、固定仓库路径、文本转义、批注脚注渲染，以及公式与代码保持不变。单元测试中的 GitHub 和 Cloudflare 请求使用模拟；正式环境应执行上述接入验收。
+测试覆盖身份拒绝、OAuth 状态与 PKCE、会话篡改/过期、版本冲突、固定仓库路径、完整 Markdown 发布验证、14 篇现有文章的导入导出、跨列表高亮与批注的增改删/撤销，以及公式、代码和译图保持不变。单元测试中的 GitHub 和 Cloudflare 请求使用模拟；正式环境应执行上述接入验收。
 
 参考：[GitHub App 用户授权](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app)、[GitHub Contents API](https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents)、[Wrangler 配置](https://developers.cloudflare.com/workers/wrangler/configuration/)。
