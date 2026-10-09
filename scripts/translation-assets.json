@@ -468,5 +468,35 @@
     "url": "https://pbs.twimg.com/media/HT75BhyaQAAfVPK.jpg",
     "path": "/translations/images/b9988c8bff283c7d.jpg",
     "bytes": 103933
+  },
+  {
+    "url": "https://jbarrow.ai/2026-10-08-why-is-speculative-decoding-fast/decode_one_token.png",
+    "path": "/translations/why-is-speculative-decoding-fast/decode_one_token.png",
+    "bytes": 37353
+  },
+  {
+    "url": "https://jbarrow.ai/2026-10-08-why-is-speculative-decoding-fast/speculative_decode.png",
+    "path": "/translations/why-is-speculative-decoding-fast/speculative_decode.png",
+    "bytes": 105113
+  },
+  {
+    "url": "https://jbarrow.ai/2026-10-08-why-is-speculative-decoding-fast/batched_decode.png",
+    "path": "/translations/why-is-speculative-decoding-fast/batched_decode.png",
+    "bytes": 63833
+  },
+  {
+    "url": "https://jbarrow.ai/2026-10-08-why-is-speculative-decoding-fast/depth_speculation.png",
+    "path": "/translations/why-is-speculative-decoding-fast/depth_speculation.png",
+    "bytes": 48291
+  },
+  {
+    "url": "https://jbarrow.ai/2026-10-08-why-is-speculative-decoding-fast/compute_bound_speculation.png",
+    "path": "/translations/why-is-speculative-decoding-fast/compute_bound_speculation.png",
+    "bytes": 79197
+  },
+  {
+    "url": "https://jbarrow.ai/2026-10-08-why-is-speculative-decoding-fast/dynamic_speculation.png",
+    "path": "/translations/why-is-speculative-decoding-fast/dynamic_speculation.png",
+    "bytes": 63610
   }
 ]
