@@ -73,6 +73,8 @@ test("whole-document writes preserve metadata and reject executable URLs, new HT
 test("formatted real-world list selection publishes marks, math, images and a nearby annotation card", async () => {
   const source = readFileSync(new URL("../src/content/blog/llm-inference-parallelism.md", import.meta.url), "utf8");
   const editor = await mount(splitArticle(source).body);
+  const baselineCount = editor.notes().length;
+  const newNoteId = `author-${baselineCount + 1}`;
   try {
     editor.action(view => {
       let range;
@@ -94,11 +96,11 @@ test("formatted real-world list selection publishes marks, math, images and a ne
     const renderer = await createMarkdownProcessor({ remarkPlugins: [math], rehypePlugins: [katex, diagrams, notes] });
     const html = (await renderer.render(splitArticle(saved).body)).code;
     assert.equal((html.match(/class="translated-diagram"/g) || []).length, 25);
-    assert.match(html, /data-author-note-card="author-2"/);
+    assert.match(html, new RegExp(`data-author-note-card="${newNoteId}"`));
     assert.match(html, /跨五项的/);
     assert.match(html, /katex-display/);
     assert.match(html, /tensor_parallel_output/);
     const reopened = await mount(splitArticle(saved).body);
-    try { assert.equal(reopened.notes().length, 2); } finally { await reopened.destroy(); }
+    try { assert.equal(reopened.notes().length, baselineCount + 1); } finally { await reopened.destroy(); }
   } finally { await editor.destroy(); }
 });
