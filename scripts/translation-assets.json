@@ -498,5 +498,20 @@
     "url": "https://jbarrow.ai/2026-10-08-why-is-speculative-decoding-fast/dynamic_speculation.png",
     "path": "/translations/why-is-speculative-decoding-fast/dynamic_speculation.png",
     "bytes": 63610
+  },
+  {
+    "url": "https://gauravjain.bearblog.dev/inference-rsi-put/loop-fig",
+    "path": "/translations/inference-engine-rsi-loop/fig-1-rsi-loop.png",
+    "bytes": 59667
+  },
+  {
+    "url": "https://gauravjain.bearblog.dev/inference-rsi-put/sw-fig",
+    "path": "/translations/inference-engine-rsi-loop/fig-2-swarm-kv-timeline.png",
+    "bytes": 52742
+  },
+  {
+    "url": "https://gauravjain.bearblog.dev/inference-rsi-put/pl-fig",
+    "path": "/translations/inference-engine-rsi-loop/fig-3-replica-placement.png",
+    "bytes": 28680
   }
 ]
