@@ -16,7 +16,7 @@ translationScope: "完整翻译 Gaurav Jain 关于将推理引擎置入 RSI 闭�
 
 那么，从 50,000 英尺的高空俯瞰，我们该如何设计这样一个系统？受 [Kimi K2.5](https://arxiv.org/abs/2602.02276) 以及 [Prime Intellect 的 Multi-Agent Systems](https://www.primeintellect.ai/blog/multi-agent-systems) 近期工作的启发，我梳理了如下思考。
 
-![推理引擎的递归自改进（RSI）闭环架构](/translations/inference-engine-rsi-loop/fig-1-rsi-loop.png)
+![推理引擎的递归自改进（RSI）闭环架构（动态流程演示）](/translations/inference-engine-rsi-loop/fig-1-rsi-loop.gif)
 
 *图 1：不同 Agent 各自负责技术栈的一个特定模块，协同提出一个组合补丁（Patch）。环境（如评估裁判 Judge）负责编译打了补丁的推理引擎，在其上运行多 Agent 真实工作负载，并对通过全部校验的改动打出正向分数（示意）。图中示意了每 3 个补丁就可能有 1 个因未通过测试而受到惩罚。一旦补丁被接受，便成为下一代引擎版本，且后续的 Agent 负载自身直接运行在此引擎之上。*
 
