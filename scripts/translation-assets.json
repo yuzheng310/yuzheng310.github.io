@@ -502,16 +502,16 @@
   {
     "url": "https://gauravjain.bearblog.dev/inference-rsi-put/loop-fig",
     "path": "/translations/inference-engine-rsi-loop/fig-1-rsi-loop.png",
-    "bytes": 59667
+    "bytes": 183804
   },
   {
     "url": "https://gauravjain.bearblog.dev/inference-rsi-put/sw-fig",
     "path": "/translations/inference-engine-rsi-loop/fig-2-swarm-kv-timeline.png",
-    "bytes": 52742
+    "bytes": 170987
   },
   {
     "url": "https://gauravjain.bearblog.dev/inference-rsi-put/pl-fig",
     "path": "/translations/inference-engine-rsi-loop/fig-3-replica-placement.png",
-    "bytes": 28680
+    "bytes": 86656
   }
 ]
