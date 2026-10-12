@@ -518,5 +518,115 @@
     "url": "https://gauravjain.bearblog.dev/inference-rsi-put/pl-fig",
     "path": "/translations/inference-engine-rsi-loop/fig-3-replica-placement.png",
     "bytes": 86656
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUH_j57aMAE3fxl.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/karpathy_quote_memory_bound.jpg",
+    "bytes": 99893
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUH_o8cakAACWpy.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/apple_silicon_speed_comparison.jpg",
+    "bytes": 110471
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUH_xeWa8AAljFd.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/prefill_vs_decode.jpg",
+    "bytes": 63954
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUH_3z9boAAcYdY.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/quantization_weights.jpg",
+    "bytes": 89029
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAC4HbcAEtOFL.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/uzu_two_levers.jpg",
+    "bytes": 85994
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAH-HaUAAnWdB.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/medium_vs_large_tiers.jpg",
+    "bytes": 87367
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAOv5aEAA2_wZ.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/hadamard_transform_outliers.jpg",
+    "bytes": 104755
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAUHkbAAAeoPW.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/transform_block_vs_quant_group.jpg",
+    "bytes": 106692
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAcLFbsAAH701.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/speculative_decoding_five_tokens.jpg",
+    "bytes": 79149
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAgWubkAA0ZyO.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/verification_tradeoff.jpg",
+    "bytes": 100358
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAoEKacAA_qO9.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/parallel_draft_coherence_issue.jpg",
+    "bytes": 103126
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIArPIaoAABM2A.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/dflash_weaver_pipeline.jpg",
+    "bytes": 47315
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAuzMaIAATYUf.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/weaver_tree_branches.jpg",
+    "bytes": 89799
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIAx5DaMAA6VIH.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/adaptive_tree_shape.jpg",
+    "bytes": 81028
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIA5hNbkAA4wOb.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/rollback_free_verification.jpg",
+    "bytes": 103486
+  },
+  {
+    "url": "https://pbs.twimg.com/amplify_video_thumb/2108248769125031936/img/pSM5AgA_RFZCrkaH.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/demo1_m5_three_way_comparison_preview.jpg",
+    "bytes": 41614
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIBNlXbMAAbh67.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/benchmark_qwen3_6_27b_m5_max.jpg",
+    "bytes": 52814
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIBSINa4AAIQCo.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/speed_by_prompt_type.jpg",
+    "bytes": 123841
+  },
+  {
+    "url": "https://pbs.twimg.com/amplify_video_thumb/2108249228363591681/img/Wjf7REJmiN1TPfMi.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/demo2_mirai_cli_realtime_preview.jpg",
+    "bytes": 30433
+  },
+  {
+    "url": "https://pbs.twimg.com/amplify_video_thumb/2108249806774874113/img/wMdstm-mhdf-_Mr_.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/demo3_client_benchmark_preview.jpg",
+    "bytes": 32310
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUIDqQzasAAMpw9.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/uzu_github_repo.jpg",
+    "bytes": 110471
+  },
+  {
+    "url": "https://pbs.twimg.com/media/HUID1YtbwAAH6Tm.jpg",
+    "path": "/translations/karpathy-trick-faster-local-llms-uzu/cover_image.jpg",
+    "bytes": 26953
   }
 ]
